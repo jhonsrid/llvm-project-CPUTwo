@@ -616,10 +616,12 @@ def testF8E5M2Memref():
         assert len(x) == 1
         assert x[0] == 0.5
 
+
 if HAS_ML_DTYPES:
     run(testF8E5M2Memref)
 else:
     log("TEST: testF8E5M2Memref")
+
 
 # Test f8E3M4 memrefs
 # CHECK-LABEL: TEST: testF8E3M4Memref
@@ -655,6 +657,7 @@ def testF8E3M4Memref():
         x = ranked_memref_to_numpy(arg2_memref_ptr[0])
         assert len(x) == 1
         assert x[0] == 0.5
+
 
 if HAS_ML_DTYPES:
     run(testF8E3M4Memref)
@@ -697,10 +700,12 @@ def testF8E4M3Memref():
         assert len(x) == 1
         assert x[0] == 0.5
 
+
 if HAS_ML_DTYPES:
     run(testF8E4M3Memref)
 else:
     log("TEST: testF8E4M3Memref")
+
 
 #  Test addition of two 2d_memref
 # CHECK-LABEL: TEST: testDynamicMemrefAdd2D
