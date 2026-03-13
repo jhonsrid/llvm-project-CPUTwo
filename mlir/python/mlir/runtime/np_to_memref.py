@@ -42,6 +42,15 @@ class F8E5M2(ctypes.Structure):
 
     _fields_ = [("f8E5M2", ctypes.c_int8)]
 
+class F8E3M4(ctypes.Structure):
+    """A ctype representation for MLIR's Float8E3M4."""
+
+    _fields_ = [("f8E3M4", ctypes.c_int8)]
+
+class F8E4M3(ctypes.Structure):
+    """A ctype representation for MLIR's Float8E4M3."""
+
+    _fields_ = [("f8E4M3", ctypes.c_int8)]
 
 # https://stackoverflow.com/questions/26921836/correct-way-to-test-for-numpy-dtype
 def as_ctype(dtp):
@@ -56,6 +65,10 @@ def as_ctype(dtp):
         return BF16
     if ml_dtypes is not None and dtp == ml_dtypes.float8_e5m2:
         return F8E5M2
+    if ml_dtypes is not None and dtp == ml_dtypes.float8_e3m4:
+        return F8E3M4
+    if ml_dtypes is not None and dtp == ml_dtypes.float8_e4m3:
+        return F8E4M3
     return np.ctypeslib.as_ctypes_type(dtp)
 
 
@@ -77,6 +90,16 @@ def to_numpy(array):
     ), f"float8_e5m2 requires the ml_dtypes package, please run:\n\npip install ml_dtypes\n"
     if array.dtype == F8E5M2:
         return array.view("float8_e5m2")
+    assert not (
+        array.dtype == F8E3M4 and ml_dtypes is None
+    ), f"float8_e3m4 requires the ml_dtypes package, please run:\n\npip install ml_dtypes\n"
+    if array.dtype == F8E3M4:
+        return array.view("float8_e3m4")
+    assert not (
+        array.dtype == F8E4M3 and ml_dtypes is None
+    ), f"float8_e4m3 requires the ml_dtypes package, please run:\n\npip install ml_dtypes\n"
+    if array.dtype == F8E4M3:
+        return array.view("float8_e4m3")
     return array
 
 
