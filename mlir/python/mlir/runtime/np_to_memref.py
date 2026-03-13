@@ -37,20 +37,24 @@ class BF16(ctypes.Structure):
 
     _fields_ = [("bf16", ctypes.c_int16)]
 
+
 class F8E5M2(ctypes.Structure):
     """A ctype representation for MLIR's Float8E5M2."""
 
     _fields_ = [("f8E5M2", ctypes.c_int8)]
+
 
 class F8E3M4(ctypes.Structure):
     """A ctype representation for MLIR's Float8E3M4."""
 
     _fields_ = [("f8E3M4", ctypes.c_int8)]
 
+
 class F8E4M3(ctypes.Structure):
     """A ctype representation for MLIR's Float8E4M3."""
 
     _fields_ = [("f8E4M3", ctypes.c_int8)]
+
 
 # https://stackoverflow.com/questions/26921836/correct-way-to-test-for-numpy-dtype
 def as_ctype(dtp):
