@@ -76,6 +76,9 @@ def as_ctype(dtp):
     return np.ctypeslib.as_ctypes_type(dtp)
 
 
+ML_DTYPES_REQUIRED = [BF16, F8E5M2, F8E3M4, F8E4M3]
+
+
 def to_numpy(array):
     """Converts ctypes array back to numpy dtype array."""
     if array.dtype == C128:
@@ -85,25 +88,17 @@ def to_numpy(array):
     if array.dtype == F16:
         return array.view("float16")
     assert not (
-        array.dtype == BF16 and ml_dtypes is None
-    ), f"bfloat16 requires the ml_dtypes package, please run:\n\npip install ml_dtypes\n"
+        array.dtype in ML_DTYPES_REQUIRED and ml_dtypes is None
+    ), f"{array.dtype.__name__} requires the ml_dtypes package, please run:\n\npip install ml_dtypes\n"
     if array.dtype == BF16:
         return array.view("bfloat16")
-    assert not (
-        array.dtype == F8E5M2 and ml_dtypes is None
-    ), f"float8_e5m2 requires the ml_dtypes package, please run:\n\npip install ml_dtypes\n"
     if array.dtype == F8E5M2:
         return array.view("float8_e5m2")
-    assert not (
-        array.dtype == F8E3M4 and ml_dtypes is None
-    ), f"float8_e3m4 requires the ml_dtypes package, please run:\n\npip install ml_dtypes\n"
     if array.dtype == F8E3M4:
         return array.view("float8_e3m4")
-    assert not (
-        array.dtype == F8E4M3 and ml_dtypes is None
-    ), f"float8_e4m3 requires the ml_dtypes package, please run:\n\npip install ml_dtypes\n"
     if array.dtype == F8E4M3:
         return array.view("float8_e4m3")
+
     return array
 
 
