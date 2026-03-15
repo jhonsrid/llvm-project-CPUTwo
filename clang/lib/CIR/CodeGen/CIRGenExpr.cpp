@@ -49,22 +49,45 @@ Address CIRGenFunction::emitAddrOfFieldStorage(Address base,
 
   mlir::Location loc = getLoc(field->getLocation());
 
-  mlir::Type fieldType = convertType(field->getType());
-  auto fieldPtr = cir::PointerType::get(fieldType);
-  // For most cases fieldName is the same as field->getName() but for lambdas,
-  // which do not currently carry the name, so it can be passed down from the
-  // CaptureStmt.
-  cir::GetMemberOp memberAddr = builder.createGetMember(
-      loc, fieldPtr, base.getPointer(), fieldName, fieldIndex);
-
-  // Retrieve layout information, compute alignment and return the final
-  // address.
+  // Retrieve layout information for both type resolution and alignment.
   const RecordDecl *rec = field->getParent();
   const CIRGenRecordLayout &layout = cgm.getTypes().getCIRGenRecordLayout(rec);
   unsigned idx = layout.getCIRFieldNo(field);
+
+  // For potentially-overlapping fields (e.g. [[no_unique_address]]), the
+  // record stores the base subobject type (without tail padding) rather than
+  // the complete object type. Use the record's member type for get_member,
+  // then bitcast to the complete type for downstream use.
+  //
+  // For unions, all fields map to index 0, so we use the field's declared type
+  // directly instead of looking up the member type from the layout.
+  mlir::Type fieldType = convertType(field->getType());
+  auto fieldPtr = cir::PointerType::get(fieldType);
+  bool needsBitcast = false;
+
+  if (!rec->isUnion() && field->isPotentiallyOverlapping()) {
+    mlir::Type memberType = layout.getCIRType().getMembers()[idx];
+    fieldPtr = cir::PointerType::get(memberType);
+    needsBitcast = true;
+  }
+
+  // For most cases fieldName is the same as field->getName() but for lambdas,
+  // which do not currently carry the name, so it can be passed down from the
+  // CaptureStmt.
+  mlir::Value addr = builder.createGetMember(loc, fieldPtr, base.getPointer(),
+                                             fieldName, fieldIndex);
+
+  // If the field is potentially overlapping, the record member uses the base
+  // subobject type. Cast to the complete object pointer type expected by
+  // callers (analogous to OG's opaque pointer behavior).
+  if (needsBitcast) {
+    auto completePtr = cir::PointerType::get(fieldType);
+    addr = builder.createBitcast(addr, completePtr);
+  }
+
   CharUnits offset = CharUnits::fromQuantity(
       layout.getCIRType().getElementOffset(cgm.getDataLayout().layout, idx));
-  return Address(memberAddr, base.getAlignment().alignmentAtOffset(offset));
+  return Address(addr, base.getAlignment().alignmentAtOffset(offset));
 }
 
 /// Given an expression of pointer type, try to
