@@ -63,35 +63,35 @@ static int numInstances=0;
 @end
 
 int main() {
-  // CHECK:  call ptr @"-[LinkedList initWithV:Next:]_thunk"
-  // CHECK:  call ptr @"-[LinkedList initWithV:Next:]_thunk"
+  // CHECK:  call ptr @"-[LinkedList initWithV:Next:]D_thunk"
+  // CHECK:  call ptr @"-[LinkedList initWithV:Next:]D_thunk"
   LinkedList* ll = [[LinkedList alloc] initWithV:8 Next:[[LinkedList alloc] initWithV:7 Next:nil]];
 
-  // CHECK:  call ptr @"-[LinkedList initWithV:Next:]_thunk"
-  // CHECK:  call ptr @"-[LinkedList next]_thunk"
-  // CHECK:  call void @"-[LinkedList setNext:]_thunk"
+  // CHECK:  call ptr @"-[LinkedList initWithV:Next:]D_thunk"
+  // CHECK:  call ptr @"-[LinkedList next]D_thunk"
+  // CHECK:  call void @"-[LinkedList setNext:]D_thunk"
   ll.next.next = [[LinkedList alloc] initWithV:6 Next:nil];
 
-  // CHECK:  call void @"-[LinkedList print]_thunk"
+  // CHECK:  call void @"-[LinkedList print]D_thunk"
   [ll print];
 
-  // CHECK: call ptr @"-[LinkedList clone]_thunk"
+  // CHECK: call ptr @"-[LinkedList clone]D_thunk"
   LinkedList* cloned = [ll clone];
 
-  // CHECK: call void @"-[LinkedList print]_thunk"
+  // CHECK: call void @"-[LinkedList print]D_thunk"
   [cloned print];
 
-  // CHECK: call ptr @"-[LinkedList printBlock]_thunk"
+  // CHECK: call ptr @"-[LinkedList printBlock]D_thunk"
   cloned.printBlock();
 
   // Test ns_consumed parameter with direct method thunk.
-  // CHECK: call i32 @"-[LinkedList sumWith:]_thunk"
+  // CHECK: call i32 @"-[LinkedList sumWith:]D_thunk"
   int combined = [ll sumWith:[cloned clone]];
 
-  // CHECK: call ptr @"-[LinkedList reverseWithPrev:]_thunk"
+  // CHECK: call ptr @"-[LinkedList reverseWithPrev:]D_thunk"
   ll = [ll reverseWithPrev:nil];
 
-  // CHECK: call void @"-[LinkedList print]_thunk"
+  // CHECK: call void @"-[LinkedList print]D_thunk"
   [ll print];
 
   return 0;

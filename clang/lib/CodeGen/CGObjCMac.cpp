@@ -25,6 +25,7 @@
 #include "clang/AST/StmtObjC.h"
 #include "clang/Basic/CodeGenOptions.h"
 #include "clang/Basic/LangOptions.h"
+#include "clang/CodeGen/CodeGenABITypes.h"
 #include "clang/CodeGen/ConstantInitBuilder.h"
 #include "llvm/ADT/CachedHashString.h"
 #include "llvm/ADT/DenseSet.h"
@@ -3917,76 +3918,80 @@ llvm::Function *CGObjCCommonMac::GenerateMethod(const ObjCMethodDecl *OMD,
   return Method;
 }
 
+/// Generate or retrieve a direct method info.
 CGObjCCommonMac::DirectMethodInfo &
 CGObjCCommonMac::GenerateDirectMethod(const ObjCMethodDecl *OMD,
                                       const ObjCContainerDecl *CD) {
   auto *COMD = OMD->getCanonicalDecl();
-  auto I = DirectMethodDefinitions.find(COMD);
-  llvm::Function *OldFn = nullptr, *Fn = nullptr;
 
-  if (I != DirectMethodDefinitions.end()) {
-    // Objective-C allows for the declaration and implementation types
-    // to differ slightly.
-    //
-    // If we're being asked for the Function associated for a method
-    // implementation, a previous value might have been cached
-    // based on the type of the canonical declaration.
-    //
-    // If these do not match, then we'll replace this function with
-    // a new one that has the proper type below.
+  // Fast path: return cached entry if this is not an implementation (no body)
+  // or if the return types match between declaration and implementation.
+  auto Cached = DirectMethodDefinitions.find(COMD);
+  if (Cached != DirectMethodDefinitions.end()) {
     if (!OMD->getBody() || COMD->getReturnType() == OMD->getReturnType())
-      return I->second;
-    OldFn = I->second.Implementation;
+      return Cached->second;
   }
 
   CodeGenTypes &Types = CGM.getTypes();
   llvm::FunctionType *MethodTy =
       Types.GetFunctionType(Types.arrangeObjCMethodDeclaration(OMD));
+  std::string Name = getSymbolNameForMethod(OMD, /*includeCategoryName*/ false,
+                                            CGM.isPreconditionThunkOptEnabled());
+  std::string ThunkName = Name + "_thunk";
 
-  if (OldFn) {
-    Fn = llvm::Function::Create(MethodTy, llvm::GlobalValue::ExternalLinkage,
-                                "", &CGM.getModule());
-    Fn->takeName(OldFn);
-    OldFn->replaceAllUsesWith(Fn);
+  // Replace OldFn with NewFn: transfer name, replace all uses, and erase.
+  auto ReplaceFunction = [](llvm::Function *OldFn, llvm::Function *NewFn) {
+    NewFn->takeName(OldFn);
+    OldFn->replaceAllUsesWith(NewFn);
     OldFn->eraseFromParent();
+  };
 
-    // Replace the cached implementation in the map.
-    I->second.Implementation = Fn;
-    llvm::Function *OldThunk = I->second.Thunk;
+  // Check if the function already exists in the module (created by Clang or
+  // Swift).
+  llvm::Function *Fn = CGM.getModule().getFunction(Name);
 
-    // If implementation was replaced, and old thunk exists, invalidate the old
-    // thunk
-    //
-    // TODO: ideally, new thunk shouldn't be necessary, if the different return
-    // type are just subclasses, at IR level they are just pointers, i.e. the
-    // NewThunk and the OldThunk are identical.
-    if (OldThunk) {
-      llvm::Function *NewThunk = GenerateObjCDirectThunk(OMD, CD, Fn);
-
-      // Replace all uses before erasing
-      NewThunk->takeName(OldThunk);
-      OldThunk->replaceAllUsesWith(NewThunk);
-      OldThunk->eraseFromParent();
-
-      I->second.Thunk = NewThunk;
-    }
-  } else {
-    bool removePrefixByte = CGM.isPreconditionThunkOptEnabled();
-    // Generate symbol without \01 prefix when optimization enabled
-    auto Name = getSymbolNameForMethod(OMD, /*include category*/ false,
-                                       /*includePrefixByte*/ !removePrefixByte);
-
-    // ALWAYS use ExternalLinkage for true implementation
+  // Function doesn't exist yet.
+  if (!Fn) {
     Fn = llvm::Function::Create(MethodTy, llvm::GlobalValue::ExternalLinkage,
                                 Name, &CGM.getModule());
-    auto [It, inserted] = DirectMethodDefinitions.insert(
-        std::make_pair(COMD, DirectMethodInfo(Fn)));
-    I = It;
+    return DirectMethodDefinitions.insert({COMD, DirectMethodInfo(Fn)})
+        .first->second;
   }
 
-  // Return reference to DirectMethodInfo (contains both Implementation and
-  // Thunk)
-  return I->second;
+  // Function exists with matching type.
+  // Swift probably created this funciton for us.
+  if (Fn->getFunctionType() == MethodTy) {
+    // Reinforce linkage in case Swift created it with different linkage.
+    Fn->setLinkage(llvm::GlobalValue::ExternalLinkage);
+
+    // Check if Swift also created a thunk for this method.
+    DirectMethodInfo Info(Fn);
+    if (llvm::Function *Thunk = CGM.getModule().getFunction(ThunkName))
+      Info.Thunk = Thunk;
+
+    return DirectMethodDefinitions.insert({COMD, Info}).first->second;
+  }
+
+  // Function exists but with mismatched type - replace it.
+  // This happens when Swift's optional handling differs from ObjC, or when
+  // ObjC declaration and implementation have slightly different return types.
+  llvm::Function *NewFn = llvm::Function::Create(
+      MethodTy, llvm::GlobalValue::ExternalLinkage, "", &CGM.getModule());
+  ReplaceFunction(Fn, NewFn);
+
+  // Check if the thunk also needs replacement.
+  DirectMethodInfo Info(NewFn);
+  if (llvm::Function *OldThunk = CGM.getModule().getFunction(ThunkName)) {
+    llvm::Function *NewThunk = GenerateObjCDirectThunk(OMD, CD, NewFn);
+    ReplaceFunction(OldThunk, NewThunk);
+    Info.Thunk = NewThunk;
+  }
+
+  if (Cached != DirectMethodDefinitions.end()) {
+    Cached->second = Info;
+    return Cached->second;
+  }
+  return DirectMethodDefinitions.insert({COMD, Info}).first->second;
 }
 
 /// Start an Objective-C direct method thunk.
@@ -8052,4 +8057,19 @@ CodeGen::CreateMacObjCRuntime(CodeGen::CodeGenModule &CGM) {
     llvm_unreachable("these runtimes are not Mac runtimes");
   }
   llvm_unreachable("bad runtime");
+}
+
+// Public wrapper function for external compilers (e.g., Swift) to access
+// the Mac runtime's GetDirectMethodCallee functionality.
+llvm::Function *clang::CodeGen::getObjCDirectMethodCallee(
+    CodeGenModule &CGM, const ObjCMethodDecl *OMD, const ObjCContainerDecl *CD,
+    bool ReceiverCanBeNull, bool ClassObjectCanBeUnrealized) {
+  // This function should only be called when targeting Darwin platforms,
+  // which always use the Mac runtime.
+  assert(CGM.getLangOpts().ObjCRuntime.isNeXTFamily() &&
+         "getObjCDirectMethodCallee requires Mac ObjC runtime");
+  CGObjCCommonMac *MacRuntime =
+      static_cast<CGObjCCommonMac *>(&CGM.getObjCRuntime());
+  return MacRuntime->GetDirectMethodCallee(OMD, CD, ReceiverCanBeNull,
+                                           ClassObjectCanBeUnrealized);
 }

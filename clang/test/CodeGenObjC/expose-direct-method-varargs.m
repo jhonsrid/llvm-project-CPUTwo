@@ -1,5 +1,8 @@
+<<<<<<< Updated upstream
 // Test variadic direct methods - use inline preconditions instead of thunks
 // to avoid musttail complexity across different architectures.
+=======
+>>>>>>> Stashed changes
 // RUN: %clang_cc1 -emit-llvm -fobjc-arc -triple arm64-apple-darwin10 \
 // RUN:   -fobjc-direct-precondition-thunk %s -o - | FileCheck %s
 
@@ -20,9 +23,9 @@ __attribute__((objc_root_class, weak_import))
 
 // Variadic methods use inline preconditions instead of thunks
 // to avoid musttail complexity across different architectures.
-// CHECK-LABEL: define hidden i32 @"-[Root varMethod:]"(
+// CHECK-LABEL: define hidden i32 @"-[Root varMethod:]D"(
 // CHECK-NOT: @"\01-[Root varMethod:]"
-// CHECK-NOT: @"-[Root varMethod:]_thunk"
+// CHECK-NOT: @"-[Root varMethod:]D_thunk"
 - (int)varMethod:(int)first, ... {
   // Should NOT have nil check (moved to caller)
   // CHECK-NOT: icmp eq ptr {{.*}}, null
@@ -30,9 +33,9 @@ __attribute__((objc_root_class, weak_import))
   return first;
 }
 
-// CHECK-LABEL: define hidden void @"+[Root printf:]"(
+// CHECK-LABEL: define hidden void @"+[Root printf:]D"(
 // CHECK-NOT: @"\01+[Root printf:]"
-// CHECK-NOT: @"+[Root printf:]_thunk"
+// CHECK-NOT: @"+[Root printf:]D_thunk"
 // Class realization should be at the call site, not in the implementation.
 // CHECK-NOT: objc_msgSend
 + (void)printf:(Root *)format, ... {}
@@ -47,7 +50,7 @@ void useRoot(Root *_Nullable root) {
   // CHECK: br i1 %{{[0-9]+}}, label %msgSend.null-receiver, label %msgSend.call
 
   // CHECK: msgSend.call:
-  // CHECK: call i32 (ptr, i32, ...) @"-[Root varMethod:]"(ptr noundef %{{[0-9]+}}, i32 noundef 1, i32 noundef 2, double noundef 3.0{{.*}})
+  // CHECK: call i32 (ptr, i32, ...) @"-[Root varMethod:]D"(ptr noundef %{{[0-9]+}}, i32 noundef 1, i32 noundef 2, double noundef 3.0{{.*}})
   // CHECK: br label %msgSend.cont
 
   // CHECK: msgSend.null-receiver:
@@ -60,7 +63,7 @@ void useRoot(Root *_Nullable root) {
   // CHECK: %{{.*}} = load ptr, ptr @"OBJC_CLASSLIST_REFERENCES_$
   // CHECK: %{{.*}} = load ptr, ptr @OBJC_SELECTOR_REFERENCES_,
   // CHECK: %{{.*}} = call ptr @objc_msgSend
-  // CHECK: call void (ptr, ptr, ...) @"+[Root printf:]"(
+  // CHECK: call void (ptr, ptr, ...) @"+[Root printf:]D"(
   [Root printf:root, "hello", root];
 
   // For weakly linked class, inline realization first
@@ -73,7 +76,7 @@ void useRoot(Root *_Nullable root) {
   // CHECK: br i1 %{{.*}}, label %msgSend.null-receiver{{.*}}, label %msgSend.call{{.*}}
 
   // Finally call the class method
-  // CHECK: %{{.*}} = call i32 (ptr, i32, ...) @"+[WeakRoot weakPrintf:]"
+  // CHECK: %{{.*}} = call i32 (ptr, i32, ...) @"+[WeakRoot weakPrintf:]D"
   [WeakRoot weakPrintf: 1, 2, 3.0];
 }
 
@@ -86,7 +89,7 @@ void useRootNonNull(Root *_Nonnull root) {
   // CHECK: br i1 %{{[0-9]+}}, label %msgSend.null-receiver, label %msgSend.call
 
   // CHECK: msgSend.call:
-  // CHECK: call i32 (ptr, i32, ...) @"-[Root varMethod:]"(ptr noundef %{{[0-9]+}}, i32 noundef 1, i32 noundef 2, double noundef 3.0{{.*}})
+  // CHECK: call i32 (ptr, i32, ...) @"-[Root varMethod:]D"(ptr noundef %{{[0-9]+}}, i32 noundef 1, i32 noundef 2, double noundef 3.0{{.*}})
   // CHECK: br label %msgSend.cont
 
   // CHECK: msgSend.null-receiver:
@@ -99,6 +102,6 @@ void useRootNonNull(Root *_Nonnull root) {
   // CHECK: %{{.*}} = load ptr, ptr @"OBJC_CLASSLIST_REFERENCES_$
   // CHECK: %{{.*}} = load ptr, ptr @OBJC_SELECTOR_REFERENCES_,
   // CHECK: %{{.*}} = call ptr @objc_msgSend
-  // CHECK: call void (ptr, ptr, ...) @"+[Root printf:]"(
+  // CHECK: call void (ptr, ptr, ...) @"+[Root printf:]D"(
   [Root printf:root, "hello", root];
 }

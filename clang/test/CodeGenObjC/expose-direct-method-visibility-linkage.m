@@ -47,43 +47,43 @@ __attribute__((objc_root_class))
   return self;
 }
 
-// FOO_M-LABEL: define hidden i32 @"-[Foo instanceMethod:]"
+// FOO_M-LABEL: define hidden i32 @"-[Foo instanceMethod:]D"
 - (int)instanceMethod:(int)x {
   // Compiler is smart enough to know that self is non-nil, so we dispatch to
   // true implementation.
-  // FOO_M: call i32 @"-[Foo privateValue]"
-  // FOO_M: call i32 @"-[Foo exportedValue]"
+  // FOO_M: call i32 @"-[Foo privateValue]D"
+  // FOO_M: call i32 @"-[Foo exportedValue]D"
   return x + [self privateValue] + [self exportedValue];
 }
 
 // Hidden property getter and setter (default visibility)
-// FOO_M-LABEL: define hidden i32 @"-[Foo privateValue]"
+// FOO_M-LABEL: define hidden i32 @"-[Foo privateValue]D"
 
 // Exported property getter and setter (explicit default visibility)
-// FOO_M-LABEL: define dso_local i32 @"-[Foo exportedValue]"
+// FOO_M-LABEL: define dso_local i32 @"-[Foo exportedValue]D"
 
-// FOO_M-LABEL: define hidden i32 @"+[Foo classMethod:]"
+// FOO_M-LABEL: define hidden i32 @"+[Foo classMethod:]D"
 + (int)classMethod:(int)x {
   return x * 3;
 }
 
-// FOO_M-LABEL: define dso_local i32 @"-[Foo exportedInstanceMethod:]"
+// FOO_M-LABEL: define dso_local i32 @"-[Foo exportedInstanceMethod:]D"
 - (int)exportedInstanceMethod:(int)x {
-  // FOO_M: call i32 @"-[Foo privateValue]"
-  // FOO_M: call i32 @"-[Foo exportedValue]"
+  // FOO_M: call i32 @"-[Foo privateValue]D"
+  // FOO_M: call i32 @"-[Foo exportedValue]D"
   return x + [self privateValue] + [self exportedValue];
 }
 
-// FOO_M-LABEL: define dso_local i32 @"+[Foo exportedClassMethod:]"
+// FOO_M-LABEL: define dso_local i32 @"+[Foo exportedClassMethod:]D"
 + (int)exportedClassMethod:(int)x {
   return x * 5;
 }
 
 // Hidden property getter and setter (default visibility)
-// FOO_M-LABEL: define hidden void @"-[Foo setPrivateValue:]"
+// FOO_M-LABEL: define hidden void @"-[Foo setPrivateValue:]D"
 
 // Exported property getter and setter (explicit default visibility)
-// FOO_M-LABEL: define dso_local void @"-[Foo setExportedValue:]"
+// FOO_M-LABEL: define dso_local void @"-[Foo setExportedValue:]D"
 
 @end
 
@@ -97,23 +97,23 @@ int main() {
     Foo *obj = [[Foo alloc] initWithprivateValue:10 exportedValue:20];
     printf("Allocated Foo\n");
 
-    // MAIN_M: call void @"-[Foo setExportedValue:]_thunk"
+    // MAIN_M: call void @"-[Foo setExportedValue:]D_thunk"
     [obj setExportedValue:30];
 
-    // MAIN_M: call i32 @"-[Foo exportedValue]_thunk"
+    // MAIN_M: call i32 @"-[Foo exportedValue]D_thunk"
     printf("Reset exportedValue: %d\n", [obj exportedValue]);
 
-    // MAIN_M: call i32 @"-[Foo exportedInstanceMethod:]_thunk"
+    // MAIN_M: call i32 @"-[Foo exportedInstanceMethod:]D_thunk"
     printf("Exported instance: %d\n", [obj exportedInstanceMethod:10]);
 
-    // MAIN_M: call i32 @"+[Foo exportedClassMethod:]_thunk"
+    // MAIN_M: call i32 @"+[Foo exportedClassMethod:]D_thunk"
     printf("Exported class: %d\n", [Foo exportedClassMethod:10]);
 
     return 0;
 }
 
 // Thunks are generated during compilation
-// MAIN_M-LABEL: define linkonce_odr hidden void @"-[Foo setExportedValue:]_thunk"
-// MAIN_M-LABEL: define linkonce_odr hidden i32 @"-[Foo exportedValue]_thunk"
-// MAIN_M-LABEL: define linkonce_odr hidden i32 @"-[Foo exportedInstanceMethod:]_thunk"
-// MAIN_M-LABEL: define linkonce_odr hidden i32 @"+[Foo exportedClassMethod:]_thunk"
+// MAIN_M-LABEL: define linkonce_odr hidden void @"-[Foo setExportedValue:]D_thunk"
+// MAIN_M-LABEL: define linkonce_odr hidden i32 @"-[Foo exportedValue]D_thunk"
+// MAIN_M-LABEL: define linkonce_odr hidden i32 @"-[Foo exportedInstanceMethod:]D_thunk"
+// MAIN_M-LABEL: define linkonce_odr hidden i32 @"+[Foo exportedClassMethod:]D_thunk"
