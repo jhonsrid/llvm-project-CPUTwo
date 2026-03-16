@@ -3,13 +3,26 @@
 BOLT accepts profile data in several formats. This document describes each
 format, how to generate it, and how BOLT consumes it.
 
+The general recommended workflow is to convert unsymbolized profiles (perf.data
+or pre-aggregated) into symbolized (fdata or YAML):
+
+```
+$ perf2bolt executable \
+# perf.data is consumed directly:
+  -p perf.data
+# OR pre-aggregated requires `--pa` switch:
+  -p preagg --pa
+# fdata is the default output format, OR YAML is emitted using `-w` flag:
+  -o perf.fdata [-w perf.yaml]
+# the output format can be switched with `--profile-format`:
+  -o perf.yaml --profile-format=yaml
+```
+
 # Unsymbolized profiles
 Sample or trace profiles without symbol information accepted by
 perf2bolt, to be converted into symbolized profile formats, used by llvm-bolt.
 
 ## Linux perf data
-
-perf2bolt accepts Linux perf data files directly. llvm-bolt support is experimental.
 
 ### Collection
 Example with brstack:
@@ -25,7 +38,9 @@ perf record -j any,u -e cycles:u -o perf.data -- ./binary
 - **Basic aggregation (`-ba`)**: Sample-based profile without branch stacks.
   Lower quality but works on hardware/VMs without LBR support.
 - **Tracing (`--itrace`)**: Synthesizing branch stacks from trace profile (Intel PT, ARM ETM).
-Requires a value (e.g. `i10usl`), see perf documentation for details.
+Requires a value (e.g. `i10usl`), see
+[perf documentation](https://github.com/torvalds/linux/blob/35f5aa9ccc83f4a4171cdb6ba023e514e2b2ecff/tools/perf/Documentation/itrace.txt)
+for details.
 - **ARM SPE (`--spe`)**: Statistical Profiling Extension on supported ARM
   platforms providing short (1-deep) branch stacks.
 
@@ -33,11 +48,6 @@ Requires a value (e.g. `i10usl`), see perf documentation for details.
 
 BOLT verifies that the build-id in `perf.data` matches the input binary.
 Use `--ignore-build-id` to skip this check.
-
-### Note
-
-Direct consumption of `perf.data` (via `-p perf.data`) is experimental.
-The recommended workflow is to convert via `perf2bolt` first.
 
 ## Pre-aggregated format
 
