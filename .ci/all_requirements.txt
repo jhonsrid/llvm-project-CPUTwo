@@ -312,7 +312,7 @@ junitparser==3.2.0 \
     --hash=sha256:b05e89c27e7b74b3c563a078d6e055d95cf397444f8f689b0ca616ebda0b3c65 \
     --hash=sha256:e14fdc0a999edfc15889b637390e8ef6ca09a49532416d3bd562857d42d4b96d
     # via -r .ci/requirements.txt
-ml-dtypes==0.5.1 ; python_version < "3.13" \
+ml-dtypes==0.5.1 \
     --hash=sha256:023ce2f502efd4d6c1e0472cc58ce3640d051d40e71e27386bed33901e201327 \
     --hash=sha256:05f23447a1c20ddf4dc7c2c661aa9ed93fcb2658f1017c204d1e758714dc28a8 \
     --hash=sha256:12651420130ee7cc13059fc56dac6ad300c3af3848b802d475148c9defd27c23 \
