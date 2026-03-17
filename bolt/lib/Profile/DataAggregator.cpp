@@ -378,8 +378,7 @@ void DataAggregator::parsePreAggregated() {
   Line = 1;
 
   // When processing a shared object, filter pre-aggregated entries by buildid.
-  if (BC && !BC->HasFixedLoadAddress &&
-      BC->getFilename().ends_with(".so")) {
+  if (BC && !BC->HasFixedLoadAddress && BC->getFilename().ends_with(".so")) {
     if (auto FileBID = BC->getFileBuildID()) {
       FilterBuildID = *FileBID;
       outs() << "PERF2BOLT: filtering pre-aggregated data for buildid "
