@@ -549,6 +549,16 @@ def fir_UndefOp : fir_OneResultOp<"undefined", [NoMemoryEffect]> {
   let hasVerifier = 0;
 }
 
+def fir_FakeUseOp : fir_Op<"fake_use", []> {
+  let summary = "fake use of values to extend their lifetime";
+  let description = [{
+    This operation is used to keep values alive for debug information purposes.
+  }];
+
+  let arguments = (ins Variadic<AnyType>:$args);
+  let assemblyFormat = "$args attr-dict `:` type($args)";
+}
+
 def fir_ZeroOp : fir_OneResultOp<"zero_bits", [NoMemoryEffect]> {
   let summary = "explicit polymorphic zero value of some type";
   let description = [{

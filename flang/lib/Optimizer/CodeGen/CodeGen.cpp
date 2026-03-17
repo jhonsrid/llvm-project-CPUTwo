@@ -4016,6 +4016,18 @@ struct ZeroOpConversion : public fir::FIROpConversion<fir::ZeroOp> {
   }
 };
 
+/// convert to LLVM IR dialect `fake_use`
+struct FakeUseOpConversion : public fir::FIROpConversion<fir::FakeUseOp> {
+  using FIROpConversion::FIROpConversion;
+
+  llvm::LogicalResult
+  matchAndRewrite(fir::FakeUseOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<mlir::LLVM::FakeUseOp>(op, adaptor.getArgs());
+    return mlir::success();
+  }
+};
+
 /// `fir.unreachable` --> `llvm.unreachable`
 struct UnreachableOpConversion
     : public fir::FIROpConversion<fir::UnreachableOp> {
@@ -4602,7 +4614,7 @@ void fir::populateFIRToLLVMConversionPatterns(
       TypeInfoOpConversion, UnboxCharOpConversion, UnboxProcOpConversion,
       UndefOpConversion, UnreachableOpConversion, UseStmtOpConversion,
       XArrayCoorOpConversion, XEmboxOpConversion, XReboxOpConversion,
-      ZeroOpConversion>(converter, options);
+      ZeroOpConversion, FakeUseOpConversion>(converter, options);
 
   // Patterns that are populated without a type converter do not trigger
   // target materializations for the operands of the root op.
