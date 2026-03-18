@@ -29,7 +29,7 @@ using llvm::RecordKeeper;
 
 // Declared in OpPythonBindingGen.cpp; the two generators share the same
 // -bind-dialect option to allow filtering enum registrations by dialect.
-extern llvm::cl::opt<std::string> clDialectName;
+extern std::string dialectNameStorage;
 
 /// File header and includes.
 constexpr const char *fileHeader = R"Py(
@@ -147,7 +147,7 @@ static bool emitPythonEnums(const RecordKeeper &records, raw_ostream &os) {
     // When -bind-dialect is specified, only emit builders for EnumAttr records
     // belonging to that dialect. This prevents duplicate registrations when
     // multiple dialects include the same .td files.
-    if (!clDialectName.empty() && dialect != clDialectName)
+    if (!dialectNameStorage.empty() && dialect != dialectNameStorage)
       continue;
     if (!attr.getMnemonic()) {
       llvm::errs() << "enum case " << attr

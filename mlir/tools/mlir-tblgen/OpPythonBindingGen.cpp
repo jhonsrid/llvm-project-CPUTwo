@@ -341,10 +341,13 @@ def {0}({2}) -> _Union[_ods_ir.OpResult, _ods_ir.OpResultList, {1}]:
 static llvm::cl::OptionCategory
     clOpPythonBindingCat("Options for -gen-python-op-bindings");
 
-llvm::cl::opt<std::string>
+std::string dialectNameStorage;
+
+llvm::cl::opt<std::string, /*ExternalStorage=*/true>
     clDialectName("bind-dialect",
                   llvm::cl::desc("The dialect to run the generator for"),
-                  llvm::cl::init(""), llvm::cl::cat(clOpPythonBindingCat));
+                  llvm::cl::location(dialectNameStorage),
+                  llvm::cl::cat(clOpPythonBindingCat));
 
 static llvm::cl::opt<std::string> clDialectExtensionName(
     "dialect-extension", llvm::cl::desc("The prefix of the dialect extension"),
@@ -1323,18 +1326,18 @@ static void emitOpBindings(const Operator &op, raw_ostream &os) {
 /// headers and utilities. Returns `false` on success to comply with Tablegen
 /// registration requirements.
 static bool emitAllOps(const RecordKeeper &records, raw_ostream &os) {
-  if (clDialectName.empty())
+  if (dialectNameStorage.empty())
     llvm::PrintFatalError("dialect name not provided");
 
   os << fileHeader;
   if (!clDialectExtensionName.empty())
-    os << formatv(dialectExtensionTemplate, clDialectName.getValue());
+    os << formatv(dialectExtensionTemplate, dialectNameStorage);
   else
-    os << formatv(dialectClassTemplate, clDialectName.getValue());
+    os << formatv(dialectClassTemplate, dialectNameStorage);
 
   for (const Record *rec : records.getAllDerivedDefinitions("Op")) {
     Operator op(rec);
-    if (op.getDialectName() == clDialectName.getValue())
+    if (op.getDialectName() == dialectNameStorage)
       emitOpBindings(op, os);
   }
   return false;
