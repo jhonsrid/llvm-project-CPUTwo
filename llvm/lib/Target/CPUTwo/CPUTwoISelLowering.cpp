@@ -272,8 +272,9 @@ SDValue CPUTwoTargetLowering::LowerVASTART(SDValue Op,
 
   // vastart stores the address of the first vararg on the stack
   SDValue FIN = DAG.getFrameIndex(FI->getVarArgsFrameIndex(), MVT::i32);
+  const Value *SV = cast<SrcValueSDNode>(Op.getOperand(2))->getValue();
   return DAG.getStore(Op.getOperand(0), DL, FIN, Op.getOperand(1),
-                      MachinePointerInfo(Op.getOperand(1)));
+                      MachinePointerInfo(SV));
 }
 
 SDValue CPUTwoTargetLowering::LowerFRAMEADDR(SDValue Op,
@@ -419,11 +420,59 @@ SDValue CPUTwoTargetLowering::LowerFormalArguments(
   }
 
   if (IsVarArg) {
-    // Record the frame index of the first variable argument
-    auto *FI = MF.getInfo<CPUTwoMachineFunctionInfo>();
-    int VarArgsFI = MF.getFrameInfo().CreateFixedObject(
-        4, CCInfo.getStackSize(), true);
-    FI->setVarArgsFrameIndex(VarArgsFI);
+    // For varargs, save unused argument registers to the stack immediately
+    // below the caller's stack arguments so va_arg can walk contiguously
+    // from register-saved args into stack-passed args.
+    //
+    // Caller's frame (at incoming SP):
+    //   [SP + 4]  5th arg (stack arg 1)
+    //   [SP + 0]  5th arg (stack arg 0)  <-- CCInfo.getStackSize() bytes
+    //   [SP - 4]  saved r3               <-- we create these
+    //   [SP - 8]  saved r2
+    //   [SP - 12] saved r1  <-- VarArgsFrameIndex points here
+    //
+    // Fixed objects have offsets relative to incoming SP. Negative offsets
+    // are below incoming SP (in the callee's frame).
+    static const MCPhysReg ArgRegs[] = {CPUTwo::R0, CPUTwo::R1, CPUTwo::R2,
+                                        CPUTwo::R3};
+    unsigned FirstVarArgReg = 0;
+    for (auto &VA : ArgLocs)
+      if (VA.isRegLoc())
+        FirstVarArgReg++;
+
+    unsigned NumSavedRegs = 4 - FirstVarArgReg;
+    MachineFrameInfo &MFI = MF.getFrameInfo();
+    SmallVector<SDValue, 4> MemOps;
+
+    // Save each register to a fixed stack slot below incoming SP.
+    // Saved in ascending address order: first vararg at lowest address.
+    SmallVector<int, 4> FIs;
+    for (unsigned i = 0; i < NumSavedRegs; ++i) {
+      // Offset from incoming SP: -(NumSavedRegs - i) * 4
+      int Offset = -static_cast<int>(NumSavedRegs - i) * 4;
+      int FI = MFI.CreateFixedObject(4, Offset, true);
+      FIs.push_back(FI);
+
+      SDValue FIN = DAG.getFrameIndex(FI, MVT::i32);
+      Register VReg = RegInfo.createVirtualRegister(&CPUTwo::GPRRegClass);
+      RegInfo.addLiveIn(ArgRegs[FirstVarArgReg + i], VReg);
+      SDValue Val = DAG.getCopyFromReg(Chain, DL, VReg, MVT::i32);
+      MemOps.push_back(
+          DAG.getStore(Chain, DL, Val, FIN, MachinePointerInfo()));
+    }
+
+    if (!MemOps.empty())
+      Chain = DAG.getNode(ISD::TokenFactor, DL, MVT::Other, MemOps);
+
+    // VarArgsFrameIndex: first vararg's slot (lowest address)
+    auto *CPUFI = MF.getInfo<CPUTwoMachineFunctionInfo>();
+    if (NumSavedRegs > 0)
+      CPUFI->setVarArgsFrameIndex(FIs[0]);
+    else {
+      // All 4 arg regs used for named params; varargs start on caller stack
+      int FI = MFI.CreateFixedObject(4, CCInfo.getStackSize(), true);
+      CPUFI->setVarArgsFrameIndex(FI);
+    }
   }
 
   return Chain;

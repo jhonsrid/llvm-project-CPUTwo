@@ -9,8 +9,10 @@
 #include "CPUTwoFixupKinds.h"
 #include "CPUTwoMCTargetDesc.h"
 #include "llvm/MC/MCAsmBackend.h"
+#include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCELFObjectWriter.h"
 #include "llvm/MC/MCObjectWriter.h"
+#include "llvm/MC/MCValue.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/Debug.h"
@@ -39,7 +41,24 @@ public:
     return Infos[Kind - FirstTargetFixupKind];
   }
 
-  void applyFixup(const MCFragment &, const MCFixup &Fixup,
+  std::optional<bool> evaluateFixup(const MCFragment &F, MCFixup &Fixup,
+                                    MCValue &Target,
+                                    uint64_t &Value) override {
+    // Force relocation for external/undefined symbols or cross-section refs
+    if (const MCSymbol *Sym = Target.getAddSym()) {
+      if (!Sym->isInSection())
+        return false;
+      // For PC-relative fixups, force relocation if target is in different
+      // section (sections may be reordered by linker)
+      if (Fixup.isPCRel() && &Sym->getSection() != F.getParent()) {
+        LLVM_DEBUG(dbgs() << "Force relocation for cross-section PC-rel\n");
+        return false;
+      }
+    }
+    return {};
+  }
+
+  void applyFixup(const MCFragment &F, const MCFixup &Fixup,
                   const MCValue &Target, uint8_t *Data, uint64_t Value,
                   bool IsResolved) override;
 
@@ -54,9 +73,13 @@ public:
 
 } // end anonymous namespace
 
-void CPUTwoAsmBackend::applyFixup(const MCFragment &, const MCFixup &Fixup,
+void CPUTwoAsmBackend::applyFixup(const MCFragment &F, const MCFixup &Fixup,
                                    const MCValue &Target, uint8_t *Data,
                                    uint64_t Value, bool IsResolved) {
+  // Emit relocation for unresolved fixups
+  if (!IsResolved)
+    Asm->getWriter().recordRelocation(F, Fixup, Target, Value);
+
   unsigned Kind = Fixup.getKind();
 
   switch (Kind) {

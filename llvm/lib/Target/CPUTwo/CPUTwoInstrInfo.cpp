@@ -150,42 +150,56 @@ bool CPUTwoInstrInfo::analyzeBranch(MachineBasicBlock &MBB,
                                      MachineBasicBlock *&FBB,
                                      SmallVectorImpl<MachineOperand> &Cond,
                                      bool AllowModify) const {
-  MachineBasicBlock::iterator I = MBB.getLastNonDebugInstr();
-  if (I == MBB.end())
+  // Start from the bottom of the block and work up, examining the
+  // terminator instructions.
+  MachineBasicBlock::iterator I = MBB.end();
+  if (I == MBB.begin())
     return false;
-
-  // Walk backwards looking for branches
-  while (I != MBB.begin() && !I->isTerminator())
+  --I;
+  while (I->isDebugInstr()) {
+    if (I == MBB.begin())
+      return false;
     --I;
-
-  if (!I->isTerminator())
-    return false;
-
-  // Handle unconditional branch (BA)
-  if (I->getOpcode() == CPUTwo::BA) {
-    TBB = I->getOperand(0).getMBB();
-
-    // Check for preceding conditional branch
-    MachineBasicBlock::iterator PrevI = I;
-    if (PrevI != MBB.begin()) {
-      --PrevI;
-      CPUTwoCC::CondCode CC = getCondFromBranchOpc(PrevI->getOpcode());
-      if (CC != static_cast<CPUTwoCC::CondCode>(-1)) {
-        FBB = TBB;
-        TBB = PrevI->getOperand(0).getMBB();
-        Cond.push_back(MachineOperand::CreateImm(CC));
-        return false;
-      }
-    }
-    return false;
   }
 
-  // Handle conditional branch
-  CPUTwoCC::CondCode CC = getCondFromBranchOpc(I->getOpcode());
-  if (CC != static_cast<CPUTwoCC::CondCode>(-1)) {
-    TBB = I->getOperand(0).getMBB();
-    Cond.push_back(MachineOperand::CreateImm(CC));
+  // Not a terminator — no branches
+  if (!isUnpredicatedTerminator(*I))
     return false;
+
+  // Get the last instruction
+  MachineInstr *LastInst = &*I;
+
+  // If there is only one terminator instruction, process it.
+  if (I == MBB.begin() || !isUnpredicatedTerminator(*--I)) {
+    if (LastInst->getOpcode() == CPUTwo::BA) {
+      TBB = LastInst->getOperand(0).getMBB();
+      return false;
+    }
+    CPUTwoCC::CondCode CC = getCondFromBranchOpc(LastInst->getOpcode());
+    if (CC != static_cast<CPUTwoCC::CondCode>(-1) && CC != CPUTwoCC::CC_AL) {
+      TBB = LastInst->getOperand(0).getMBB();
+      Cond.push_back(MachineOperand::CreateImm(CC));
+      return false;
+    }
+    return true; // Can't analyze
+  }
+
+  // Two terminators: should be conditional followed by unconditional
+  MachineInstr *SecondLastInst = &*I;
+
+  // If there are three terminators, we don't know what sort of block this is.
+  if (I != MBB.begin() && isUnpredicatedTerminator(*--I))
+    return true;
+
+  // Conditional + unconditional
+  if (LastInst->getOpcode() == CPUTwo::BA) {
+    CPUTwoCC::CondCode CC = getCondFromBranchOpc(SecondLastInst->getOpcode());
+    if (CC != static_cast<CPUTwoCC::CondCode>(-1) && CC != CPUTwoCC::CC_AL) {
+      TBB = SecondLastInst->getOperand(0).getMBB();
+      FBB = LastInst->getOperand(0).getMBB();
+      Cond.push_back(MachineOperand::CreateImm(CC));
+      return false;
+    }
   }
 
   return true; // Can't analyze

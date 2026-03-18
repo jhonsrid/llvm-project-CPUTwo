@@ -8,6 +8,7 @@
 
 #include "CPUTwoTargetMachine.h"
 #include "CPUTwo.h"
+#include "CPUTwoMachineFunctionInfo.h"
 #include "CPUTwoTargetObjectFile.h"
 #include "TargetInfo/CPUTwoTargetInfo.h"
 #include "llvm/CodeGen/Passes.h"
@@ -59,6 +60,13 @@ public:
 bool CPUTwoPassConfig::addInstSelector() {
   addPass(createCPUTwoISelDag(getCPUTwoTargetMachine()));
   return false;
+}
+
+MachineFunctionInfo *CPUTwoTargetMachine::createMachineFunctionInfo(
+    BumpPtrAllocator &Allocator, const Function &F,
+    const TargetSubtargetInfo *STI) const {
+  return CPUTwoMachineFunctionInfo::create<CPUTwoMachineFunctionInfo>(
+      Allocator, F, STI);
 }
 
 TargetPassConfig *CPUTwoTargetMachine::createPassConfig(PassManagerBase &PM) {
