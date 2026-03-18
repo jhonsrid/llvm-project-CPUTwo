@@ -89,7 +89,6 @@ private:
         llvmModule->addModuleFlag(llvm::Module::Error,
                                   "amdhsa_code_object_version",
                                   static_cast<uint32_t>(intAttr.getInt()));
-        return mlir::success();
       }
     }
 
@@ -100,7 +99,6 @@ private:
             llvm::MDString::get(llvmContext, strAttr.getValue());
         llvmModule->addModuleFlag(llvm::Module::Error, "amdgpu_printf_kind",
                                   mdStr);
-        return mlir::success();
       }
     }
 
