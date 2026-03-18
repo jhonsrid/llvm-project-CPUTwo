@@ -1303,6 +1303,8 @@ StringRef ELFObjectFile<ELFT>::getFileFormatName() const {
       return "elf32-avr";
     case ELF::EM_HEXAGON:
       return "elf32-hexagon";
+    case ELF::EM_CPUTWO:
+      return "elf32-cputwo";
     case ELF::EM_LANAI:
       return "elf32-lanai";
     case ELF::EM_MIPS:
@@ -1380,6 +1382,8 @@ template <class ELFT> Triple::ArchType ELFObjectFile<ELFT>::getArch() const {
     return Triple::avr;
   case ELF::EM_HEXAGON:
     return Triple::hexagon;
+  case ELF::EM_CPUTWO:
+    return Triple::cputwo;
   case ELF::EM_LANAI:
     return Triple::lanai;
   case ELF::EM_MIPS:

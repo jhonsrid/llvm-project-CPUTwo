@@ -888,6 +888,9 @@ void ScalarEnumerationTraits<ELFYAML::ELF_REL>::enumeration(
   case ELF::EM_RISCV:
 #include "llvm/BinaryFormat/ELFRelocs/RISCV.def"
     break;
+  case ELF::EM_CPUTWO:
+#include "llvm/BinaryFormat/ELFRelocs/CPUTwo.def"
+    break;
   case ELF::EM_LANAI:
 #include "llvm/BinaryFormat/ELFRelocs/Lanai.def"
     break;

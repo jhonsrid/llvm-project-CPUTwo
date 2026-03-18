@@ -1,0 +1,15 @@
+
+#ifndef ELF_RELOC
+#error "ELF_RELOC must be defined"
+#endif
+
+// No relocation
+ELF_RELOC(R_CPUTWO_NONE,       0)
+// General 32-bit relocation
+ELF_RELOC(R_CPUTWO_32,         1)
+// PC-relative 20-bit (branches/jumps, ±512KB)
+ELF_RELOC(R_CPUTWO_PC20,       2)
+// Upper 16 bits of a symbolic relocation (for LUI)
+ELF_RELOC(R_CPUTWO_HI16,       3)
+// Lower 16 bits of a symbolic relocation (for ORI)
+ELF_RELOC(R_CPUTWO_LO16,       4)
