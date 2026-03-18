@@ -1772,6 +1772,8 @@ static uint16_t getBitcodeMachineKind(Ctx &ctx, StringRef path,
   case Triple::mips64:
   case Triple::mips64el:
     return EM_MIPS;
+  case Triple::cputwo:
+    return EM_CPUTWO;
   case Triple::msp430:
     return EM_MSP430;
   case Triple::ppc:
