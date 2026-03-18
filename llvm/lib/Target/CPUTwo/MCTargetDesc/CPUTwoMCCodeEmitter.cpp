@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "CPUTwoFixupKinds.h"
+#include "CPUTwoMCAsmInfo.h"
 #include "CPUTwoMCTargetDesc.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/MC/MCCodeEmitter.h"
@@ -80,8 +81,26 @@ unsigned CPUTwoMCCodeEmitter::getMachineOpValue(
   if (MO.isImm())
     return static_cast<unsigned>(MO.getImm());
 
-  // MO must be an expression
+  // MO must be an expression — create a fixup
   assert(MO.isExpr() && "Expected expression operand");
+  const MCExpr *Expr = MO.getExpr();
+
+  // Determine fixup kind from the specifier
+  MCFixupKind Kind = FK_Data_4;
+  if (auto *SE = dyn_cast<MCSpecifierExpr>(Expr)) {
+    switch (SE->getSpecifier()) {
+    case CPUTwo::S_HI16:
+      Kind = static_cast<MCFixupKind>(CPUTwo::fixup_cputwo_hi16);
+      break;
+    case CPUTwo::S_LO16:
+      Kind = static_cast<MCFixupKind>(CPUTwo::fixup_cputwo_lo16);
+      break;
+    default:
+      break;
+    }
+  }
+
+  Fixups.push_back(MCFixup::create(0, Expr, Kind));
   return 0;
 }
 
