@@ -97,6 +97,12 @@ bool CPUTwoInstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
         .addReg(CPUTwo::LR);
     MI.eraseFromParent();
     return true;
+  case CPUTwo::BRIND:
+    // BRIND $target -> MOV PC, $target
+    BuildMI(*MI.getParent(), MI, MI.getDebugLoc(), get(CPUTwo::MOV), CPUTwo::PC)
+        .addReg(MI.getOperand(0).getReg());
+    MI.eraseFromParent();
+    return true;
   case CPUTwo::BRCC: {
     // BRCC target, cc -> Bcc target
     auto CC = static_cast<CPUTwoCC::CondCode>(MI.getOperand(1).getImm());

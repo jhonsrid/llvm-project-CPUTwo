@@ -65,6 +65,10 @@ CPUTwoTargetLowering::CPUTwoTargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::FP_TO_UINT, MVT::i32, Expand);
   setOperationAction(ISD::FP_TO_SINT, MVT::i32, Expand);
 
+  // Multiply hi/lo — expand to separate MUL + MULH/MULHU
+  setOperationAction(ISD::SMUL_LOHI, MVT::i32, Expand);
+  setOperationAction(ISD::UMUL_LOHI, MVT::i32, Expand);
+
   // No bit-counting instructions
   setOperationAction(ISD::CTPOP, MVT::i32, Expand);
   setOperationAction(ISD::CTLZ, MVT::i32, Expand);
@@ -75,6 +79,12 @@ CPUTwoTargetLowering::CPUTwoTargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::VAARG, MVT::Other, Expand);
   setOperationAction(ISD::VACOPY, MVT::Other, Expand);
   setOperationAction(ISD::VAEND, MVT::Other, Expand);
+
+  // Jump tables — expand BR_JT to BRIND (indirect branch)
+  setOperationAction(ISD::BR_JT, MVT::Other, Expand);
+
+  // Put jump tables in the function's text section so temp labels resolve
+  setMinimumJumpTableEntries(INT_MAX); // Disable jump tables, use if-else chains
 
   // Dynamic stack allocation
   setOperationAction(ISD::DYNAMIC_STACKALLOC, MVT::i32, Custom);

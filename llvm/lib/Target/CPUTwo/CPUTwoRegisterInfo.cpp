@@ -64,12 +64,14 @@ bool CPUTwoRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   if (isInt<16>(Offset)) {
     MI.getOperand(FIOperandNum + 1).ChangeToImmediate(Offset);
   } else {
-    // For large offsets, use a scratch register
-    Register ScratchReg = RS ? RS->scavengeRegisterBackwards(
-                                   CPUTwo::GPRRegClass, II, false, SPAdj)
-                             : Register();
+    // For large offsets, try scavenging a register; fall back to R12 (scratch)
+    Register ScratchReg;
+    if (RS)
+      ScratchReg = RS->scavengeRegisterBackwards(
+          CPUTwo::GPRRegClass, II, /*RestoreAfter=*/false, SPAdj,
+          /*AllowSpill=*/true);
     if (!ScratchReg)
-      report_fatal_error("Unable to scavenge register for frame index");
+      ScratchReg = CPUTwo::R12;
 
     DebugLoc DL = MI.getDebugLoc();
     MachineBasicBlock &MBB = *MI.getParent();

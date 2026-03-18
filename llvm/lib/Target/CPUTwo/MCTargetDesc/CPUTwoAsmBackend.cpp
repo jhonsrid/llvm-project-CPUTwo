@@ -44,16 +44,13 @@ public:
   std::optional<bool> evaluateFixup(const MCFragment &F, MCFixup &Fixup,
                                     MCValue &Target,
                                     uint64_t &Value) override {
-    // Force relocation for external/undefined symbols or cross-section refs
     if (const MCSymbol *Sym = Target.getAddSym()) {
+      // Force relocation for undefined/external symbols
       if (!Sym->isInSection())
         return false;
-      // For PC-relative fixups, force relocation if target is in different
-      // section (sections may be reordered by linker)
-      if (Fixup.isPCRel() && &Sym->getSection() != F.getParent()) {
-        LLVM_DEBUG(dbgs() << "Force relocation for cross-section PC-rel\n");
+      // Force relocation for cross-section refs to non-temporary symbols
+      if (!Sym->isTemporary() && &Sym->getSection() != F.getParent())
         return false;
-      }
     }
     return {};
   }

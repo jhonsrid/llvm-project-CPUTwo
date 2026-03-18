@@ -13,6 +13,7 @@
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/RegisterScavenging.h"
 
 using namespace llvm;
 
@@ -82,6 +83,21 @@ void CPUTwoFrameLowering::emitEpilogue(MachineFunction &MF,
         .addReg(CPUTwo::SP)
         .addReg(ScratchReg)
         .setMIFlag(MachineInstr::FrameDestroy);
+  }
+}
+
+void CPUTwoFrameLowering::determineCalleeSaves(MachineFunction &MF,
+                                                 BitVector &SavedRegs,
+                                                 RegScavenger *RS) const {
+  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs, RS);
+
+  // Create an emergency spill slot for the register scavenger.
+  // This is needed when eliminateFrameIndex needs a scratch register
+  // for large stack offsets.
+  if (RS && !MF.getFrameInfo().isFrameAddressTaken()) {
+    MachineFrameInfo &MFI = MF.getFrameInfo();
+    // GPR is 4 bytes, 4-byte aligned
+    RS->addScavengingFrameIndex(MFI.CreateStackObject(4, Align(4), false));
   }
 }
 

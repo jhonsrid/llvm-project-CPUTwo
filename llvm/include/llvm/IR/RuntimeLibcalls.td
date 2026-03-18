@@ -2814,6 +2814,15 @@ def LanaiSystemLibrary
 }
 
 //===----------------------------------------------------------------------===//
+// CPUTwo Runtime Libcalls
+//===----------------------------------------------------------------------===//
+
+def isCPUTwo : RuntimeLibcallPredicate<"TT.getArch() == Triple::cputwo">;
+
+def CPUTwoSystemLibrary
+    : SystemRuntimeLibrary<isCPUTwo, (add DefaultRuntimeLibcallImpls)>;
+
+//===----------------------------------------------------------------------===//
 // Mips16 Runtime Libcalls
 //===----------------------------------------------------------------------===//
 

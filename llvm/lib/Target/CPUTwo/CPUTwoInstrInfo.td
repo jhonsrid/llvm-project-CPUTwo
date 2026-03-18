@@ -595,6 +595,11 @@ def CAS : CPUTwoInstR<0x3D,
 let isReturn = 1, isTerminator = 1, isBarrier = 1 in
 def RET : CPUTwoPseudo<(outs), (ins), "ret", [(CPUTwo_ret)]>;
 
+// Indirect branch (for switch tables)
+let isBranch = 1, isTerminator = 1, isBarrier = 1, isIndirectBranch = 1 in
+def BRIND : CPUTwoPseudo<(outs), (ins GPR:$target), "br\t$target",
+                          [(brind GPR:$target)]>;
+
 // Call frame setup/destroy pseudo-instructions
 let Defs = [SP], Uses = [SP], hasSideEffects = 1 in {
 def ADJCALLSTACKDOWN : CPUTwoPseudo<(outs), (ins i32imm:$amt, i32imm:$amt2),
