@@ -20,6 +20,8 @@ class CPUTwoMCAsmInfo : public MCAsmInfoELF {
 public:
   explicit CPUTwoMCAsmInfo(const Triple &TheTriple,
                            const MCTargetOptions &Options);
+  void printSpecifierExpr(raw_ostream &OS,
+                          const MCSpecifierExpr &Expr) const override;
 };
 
 namespace CPUTwo {

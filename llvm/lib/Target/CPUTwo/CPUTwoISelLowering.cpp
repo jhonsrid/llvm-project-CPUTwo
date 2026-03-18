@@ -10,6 +10,7 @@
 #include "CPUTwo.h"
 #include "CPUTwoSubtarget.h"
 #include "CPUTwoTargetMachine.h"
+#include "CPUTwoCondCode.h"
 #include "MCTargetDesc/CPUTwoMCAsmInfo.h"
 #include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -213,9 +214,21 @@ SDValue CPUTwoTargetLowering::LowerJumpTable(SDValue Op,
 // Branch/compare lowering
 //===----------------------------------------------------------------------===//
 
-static CPUTwoISD::NodeType getCPUTwoCC(ISD::CondCode CC) {
-  // This is a placeholder - proper condition code mapping needed
-  return CPUTwoISD::BRCOND;
+static CPUTwoCC::CondCode intCondCodeToCC(ISD::CondCode CC) {
+  switch (CC) {
+  case ISD::SETEQ:  return CPUTwoCC::CC_EQ;
+  case ISD::SETNE:  return CPUTwoCC::CC_NE;
+  case ISD::SETLT:  return CPUTwoCC::CC_LT;
+  case ISD::SETGE:  return CPUTwoCC::CC_GE;
+  case ISD::SETGT:  return CPUTwoCC::CC_GT;
+  case ISD::SETLE:  return CPUTwoCC::CC_LE;
+  case ISD::SETULT: return CPUTwoCC::CC_LTU;
+  case ISD::SETUGE: return CPUTwoCC::CC_GEU;
+  case ISD::SETUGT: return CPUTwoCC::CC_GTU;
+  case ISD::SETULE: return CPUTwoCC::CC_LEU;
+  default:
+    llvm_unreachable("Unsupported condition code");
+  }
 }
 
 SDValue CPUTwoTargetLowering::LowerBR_CC(SDValue Op,
@@ -227,8 +240,9 @@ SDValue CPUTwoTargetLowering::LowerBR_CC(SDValue Op,
   SDValue RHS = Op.getOperand(3);
   SDValue Dest = Op.getOperand(4);
 
+  CPUTwoCC::CondCode TargetCC = intCondCodeToCC(CC);
   SDValue Cmp = DAG.getNode(CPUTwoISD::CMP, DL, MVT::Glue, LHS, RHS);
-  SDValue CCVal = DAG.getConstant(CC, DL, MVT::i32);
+  SDValue CCVal = DAG.getConstant(TargetCC, DL, MVT::i32);
   return DAG.getNode(CPUTwoISD::BRCOND, DL, MVT::Other, Chain, Dest, CCVal,
                      Cmp);
 }
@@ -242,8 +256,9 @@ SDValue CPUTwoTargetLowering::LowerSELECT_CC(SDValue Op,
   SDValue FalseV = Op.getOperand(3);
   ISD::CondCode CC = cast<CondCodeSDNode>(Op.getOperand(4))->get();
 
+  CPUTwoCC::CondCode TargetCC = intCondCodeToCC(CC);
   SDValue Cmp = DAG.getNode(CPUTwoISD::CMP, DL, MVT::Glue, LHS, RHS);
-  SDValue CCVal = DAG.getConstant(CC, DL, MVT::i32);
+  SDValue CCVal = DAG.getConstant(TargetCC, DL, MVT::i32);
   return DAG.getNode(CPUTwoISD::SELECT_CC, DL, Op.getValueType(), TrueV,
                      FalseV, CCVal, Cmp);
 }
@@ -285,6 +300,82 @@ SDValue CPUTwoTargetLowering::LowerDYNAMIC_STACKALLOC(SDValue Op,
 
   SDValue Ops[2] = {NewSP, Chain};
   return DAG.getMergeValues(Ops, DL);
+}
+
+//===----------------------------------------------------------------------===//
+// Custom inserter for SELECT_CC pseudo
+//===----------------------------------------------------------------------===//
+
+MachineBasicBlock *CPUTwoTargetLowering::EmitInstrWithCustomInserter(
+    MachineInstr &MI, MachineBasicBlock *MBB) const {
+  assert(MI.getOpcode() == CPUTwo::SELECT_CC &&
+         "Unexpected instruction for custom inserter");
+
+  const TargetInstrInfo &TII = *Subtarget.getInstrInfo();
+  DebugLoc DL = MI.getDebugLoc();
+
+  // Diamond:
+  //   MBB:
+  //     CMP ... (flags already set by glue)
+  //     Bcc TrueMBB
+  //   FalseMBB:
+  //     ... (fallthrough)
+  //   TrueMBB:
+  //     ... (fallthrough)
+  //   SinkMBB:
+  //     %result = PHI [TrueV, TrueMBB], [FalseV, FalseMBB]
+
+  Register DstReg = MI.getOperand(0).getReg();
+  Register TrueReg = MI.getOperand(1).getReg();
+  Register FalseReg = MI.getOperand(2).getReg();
+  auto CC = static_cast<CPUTwoCC::CondCode>(MI.getOperand(3).getImm());
+
+  MachineFunction *MF = MBB->getParent();
+  MachineBasicBlock *FalseMBB = MF->CreateMachineBasicBlock();
+  MachineBasicBlock *SinkMBB = MF->CreateMachineBasicBlock();
+
+  MachineFunction::iterator It = ++MBB->getIterator();
+  MF->insert(It, FalseMBB);
+  MF->insert(It, SinkMBB);
+
+  // Transfer successors and remaining instructions to SinkMBB
+  SinkMBB->splice(SinkMBB->begin(), MBB,
+                  std::next(MachineBasicBlock::iterator(MI)), MBB->end());
+  SinkMBB->transferSuccessorsAndUpdatePHIs(MBB);
+
+  MBB->addSuccessor(FalseMBB);
+  MBB->addSuccessor(SinkMBB);
+  FalseMBB->addSuccessor(SinkMBB);
+
+  // Emit conditional branch: if CC, goto SinkMBB (true path)
+  unsigned BrOpc;
+  switch (CC) {
+  case CPUTwoCC::CC_EQ:  BrOpc = CPUTwo::BEQ; break;
+  case CPUTwoCC::CC_NE:  BrOpc = CPUTwo::BNE; break;
+  case CPUTwoCC::CC_LT:  BrOpc = CPUTwo::BLT; break;
+  case CPUTwoCC::CC_GE:  BrOpc = CPUTwo::BGE; break;
+  case CPUTwoCC::CC_LTU: BrOpc = CPUTwo::BLTU; break;
+  case CPUTwoCC::CC_GEU: BrOpc = CPUTwo::BGEU; break;
+  case CPUTwoCC::CC_GT:  BrOpc = CPUTwo::BGT; break;
+  case CPUTwoCC::CC_LE:  BrOpc = CPUTwo::BLE; break;
+  case CPUTwoCC::CC_GTU: BrOpc = CPUTwo::BGTU; break;
+  case CPUTwoCC::CC_LEU: BrOpc = CPUTwo::BLEU; break;
+  default: llvm_unreachable("Invalid CC");
+  }
+
+  BuildMI(MBB, DL, TII.get(BrOpc)).addMBB(SinkMBB);
+
+  // FalseMBB is empty, falls through to SinkMBB
+
+  // SinkMBB: PHI node
+  BuildMI(*SinkMBB, SinkMBB->begin(), DL, TII.get(CPUTwo::PHI), DstReg)
+      .addReg(TrueReg)
+      .addMBB(MBB)
+      .addReg(FalseReg)
+      .addMBB(FalseMBB);
+
+  MI.eraseFromParent();
+  return SinkMBB;
 }
 
 //===----------------------------------------------------------------------===//
@@ -407,6 +498,13 @@ SDValue CPUTwoTargetLowering::LowerCall(
     Chain = DAG.getCopyToReg(Chain, DL, Reg.first, Reg.second, Glue);
     Glue = Chain.getValue(1);
   }
+
+  // Wrap the callee for direct calls to prevent address materialization
+  if (auto *GA = dyn_cast<GlobalAddressSDNode>(Callee))
+    Callee = DAG.getTargetGlobalAddress(GA->getGlobal(), DL, MVT::i32,
+                                         GA->getOffset());
+  else if (auto *ES = dyn_cast<ExternalSymbolSDNode>(Callee))
+    Callee = DAG.getTargetExternalSymbol(ES->getSymbol(), MVT::i32);
 
   // Build call operands
   SmallVector<SDValue, 8> Ops;

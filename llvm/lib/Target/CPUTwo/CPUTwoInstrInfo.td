@@ -21,11 +21,33 @@ def CallSeqStart : SDNode<"ISD::CALLSEQ_START", SDT_CPUTwoCallSeqStart,
 def CallSeqEnd   : SDNode<"ISD::CALLSEQ_END", SDT_CPUTwoCallSeqEnd,
                           [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue]>;
 
-def SDT_CPUTwoCall : SDTypeProfile<0, -1, [SDTCisVT<0, iPTR>]>;
-def SDT_CPUTwoRet  : SDTypeProfile<0, 0, []>;
+def SDT_CPUTwoCall    : SDTypeProfile<0, -1, [SDTCisVT<0, iPTR>]>;
+def SDT_CPUTwoRet     : SDTypeProfile<0, 0, []>;
+def SDT_CPUTwoSetFlag : SDTypeProfile<0, 2, [SDTCisSameAs<0, 1>]>;
+def SDT_CPUTwoBrCC    : SDTypeProfile<0, 2, [SDTCisVT<0, OtherVT>,
+                                              SDTCisVT<1, i32>]>;
+def SDT_CPUTwoSelectCC : SDTypeProfile<1, 3, [SDTCisSameAs<0, 1>,
+                                               SDTCisSameAs<1, 2>,
+                                               SDTCisVT<3, i32>]>;
+def SDT_CPUTwoHi16    : SDTypeProfile<1, 1, [SDTCisInt<0>]>;
+def SDT_CPUTwoLo16    : SDTypeProfile<1, 2, [SDTCisInt<0>]>;
+def SDT_CPUTwoWrapper : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>,
+                                              SDTCisPtrTy<0>]>;
 
-def CPUTwo_ret : SDNode<"CPUTwoISD::RET", SDT_CPUTwoRet,
-                        [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
+def CPUTwo_ret       : SDNode<"CPUTwoISD::RET", SDT_CPUTwoRet,
+                              [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
+def CPUTwo_call      : SDNode<"CPUTwoISD::CALL", SDT_CPUTwoCall,
+                              [SDNPHasChain, SDNPOutGlue, SDNPOptInGlue,
+                               SDNPVariadic]>;
+def CPUTwo_cmp       : SDNode<"CPUTwoISD::CMP", SDT_CPUTwoSetFlag,
+                              [SDNPOutGlue]>;
+def CPUTwo_brcc      : SDNode<"CPUTwoISD::BRCOND", SDT_CPUTwoBrCC,
+                              [SDNPHasChain, SDNPInGlue]>;
+def CPUTwo_selectcc  : SDNode<"CPUTwoISD::SELECT_CC", SDT_CPUTwoSelectCC,
+                              [SDNPInGlue]>;
+def CPUTwo_hi16      : SDNode<"CPUTwoISD::HI16", SDT_CPUTwoHi16>;
+def CPUTwo_lo16      : SDNode<"CPUTwoISD::LO16", SDT_CPUTwoLo16>;
+def CPUTwo_wrapper   : SDNode<"CPUTwoISD::WRAPPER", SDT_CPUTwoWrapper>;
 
 //===----------------------------------------------------------------------===//
 // Operand definitions
@@ -57,6 +79,11 @@ def memsrc : Operand<i32> {
 // 5-bit shift amount (for R-type shift field)
 def shamt5 : Operand<i32>, ImmLeaf<i32, [{return isUInt<5>(Imm);}]> {
   let DecoderMethod = "decodeUImmOperand<5>";
+}
+
+// Condition code operand
+def CCOp : Operand<i32> {
+  let PrintMethod = "printCondCodeOperand";
 }
 
 //===----------------------------------------------------------------------===//
@@ -311,7 +338,7 @@ def MOVHI : CPUTwoInstI<0x13,
 def LUI : CPUTwoInstI<0x38,
   (outs GPR:$rd), (ins uimm16:$imm16),
   "lui\t$rd, $imm16",
-  []> {
+  [(set GPR:$rd, (CPUTwo_hi16 uimm16:$imm16))]> {
   let rs1 = 0;
 }
 
@@ -319,25 +346,27 @@ def LUI : CPUTwoInstI<0x38,
 // Comparison instructions
 //===----------------------------------------------------------------------===//
 
-let Defs = [R0] in {
+let Defs = [SR] in {
 // CMP sets flags only, rd must be 0
 def CMP : CPUTwoInstR<0x28,
   (outs), (ins GPR:$rs1, GPR:$rs2),
   "cmp\t$rs1, $rs2",
-  []> {
+  [(CPUTwo_cmp GPR:$rs1, GPR:$rs2)]> {
   let rd = 0;
   let shift = 0;
   let func = 0;
+  let isCompare = 1;
 }
 
 // CMPI sets flags only (zero-extended imm16)
 def CMPI : CPUTwoInstI<0x29,
   (outs), (ins GPR:$rs1, uimm16:$imm16),
   "cmpi\t$rs1, $imm16",
-  []> {
+  [(CPUTwo_cmp GPR:$rs1, uimm16:$imm16)]> {
   let rd = 0;
+  let isCompare = 1;
 }
-}
+} // Defs = [SR]
 
 //===----------------------------------------------------------------------===//
 // Load instructions
@@ -461,7 +490,7 @@ def SHX : CPUTwoInstR<0x37,
 // Branch instructions (B-type)
 //===----------------------------------------------------------------------===//
 
-let isBranch = 1, isTerminator = 1 in {
+let isBranch = 1, isTerminator = 1, Uses = [SR] in {
 
 class CPUTwoBranch<bits<4> condcode, string asmstr>
     : CPUTwoInstB<0x0D, condcode,
@@ -486,26 +515,51 @@ def BLEU : CPUTwoBranch<10, "bleu">;
 
 } // isBranch, isTerminator
 
+// Unconditional branch pattern
+def : Pat<(br bb:$offset), (BA brtarget20:$offset)>;
+
+// Conditional branch pseudo — takes a condition code operand, selected
+// by custom lowering and expanded by InstrInfo::insertBranch
+let isBranch = 1, isTerminator = 1, isCodeGenOnly = 1, isPseudo = 1,
+    Uses = [SR] in
+def BRCC : CPUTwoPseudo<(outs), (ins brtarget20:$offset, CCOp:$cc),
+                         "brcc\t$offset, $cc",
+                         [(CPUTwo_brcc bb:$offset, imm:$cc)]>;
+
+// SELECT_CC pseudo — expanded post-RA
+let usesCustomInserter = 1, Uses = [SR] in
+def SELECT_CC : CPUTwoPseudo<(outs GPR:$dst),
+                              (ins GPR:$truev, GPR:$falsev, CCOp:$cc),
+                              "# SELECT_CC",
+                              [(set GPR:$dst,
+                                (CPUTwo_selectcc GPR:$truev, GPR:$falsev,
+                                                 imm:$cc))]>;
+
 //===----------------------------------------------------------------------===//
 // Jump instructions (J-type)
 //===----------------------------------------------------------------------===//
 
-let isCall = 1 in
+let isCall = 1, Defs = [LR] in
 def JMP : CPUTwoInstJ<0x0E,
-  (outs GPR:$rd), (ins brtarget20:$offset),
-  "jmp\t$rd, $offset",
-  []>;
+  (outs), (ins brtarget20:$offset),
+  "jmp\tlr, $offset",
+  []> {
+  let rd = 14; // LR
+}
 
 // CALLR - register indirect call (R-type)
-let isCall = 1 in
+let isCall = 1, Defs = [LR] in
 def CALLR : CPUTwoInstR<0x2A,
-  (outs GPR:$rd), (ins GPR:$rs1),
-  "callr\t$rd, $rs1",
+  (outs), (ins GPR:$rs1),
+  "callr\tlr, $rs1",
   []> {
+  let rd = 14; // LR
   let rs2 = 0;
   let shift = 0;
   let func = 0;
 }
+
+// Call patterns are handled by custom ISelDAGToDAG::Select
 
 //===----------------------------------------------------------------------===//
 // System instructions
@@ -550,3 +604,53 @@ def ADJCALLSTACKUP : CPUTwoPseudo<(outs), (ins i32imm:$amt1, i32imm:$amt2),
                                    "# ADJCALLSTACKUP $amt1, $amt2",
                                    [(CallSeqEnd timm:$amt1, timm:$amt2)]>;
 }
+
+//===----------------------------------------------------------------------===//
+// Additional patterns (must come after instruction definitions)
+//===----------------------------------------------------------------------===//
+
+// Pattern: ORI for lo16 part of address materialization
+def : Pat<(CPUTwo_lo16 GPR:$hi, uimm16:$lo),
+          (ORI GPR:$hi, uimm16:$lo)>;
+
+// Pattern: CPUTwo_wrapper for global address
+def : Pat<(CPUTwo_wrapper tglobaladdr:$addr), (LUI tglobaladdr:$addr)>;
+def : Pat<(CPUTwo_wrapper tblockaddress:$addr), (LUI tblockaddress:$addr)>;
+def : Pat<(CPUTwo_wrapper tconstpool:$addr), (LUI tconstpool:$addr)>;
+def : Pat<(CPUTwo_wrapper tjumptable:$addr), (LUI tjumptable:$addr)>;
+
+// Load/store with zero offset patterns
+def : Pat<(load GPR:$rs1), (LW GPR:$rs1, 0)>;
+def : Pat<(store GPR:$rd, GPR:$rs1), (SW GPR:$rd, GPR:$rs1, 0)>;
+def : Pat<(sextloadi16 GPR:$rs1), (LH GPR:$rs1, 0)>;
+def : Pat<(zextloadi16 GPR:$rs1), (LHU GPR:$rs1, 0)>;
+def : Pat<(sextloadi8 GPR:$rs1), (LB GPR:$rs1, 0)>;
+def : Pat<(zextloadi8 GPR:$rs1), (LBU GPR:$rs1, 0)>;
+def : Pat<(truncstorei16 GPR:$rd, GPR:$rs1), (SH GPR:$rd, GPR:$rs1, 0)>;
+def : Pat<(truncstorei8 GPR:$rd, GPR:$rs1), (SB GPR:$rd, GPR:$rs1, 0)>;
+
+// extload -> zextload patterns
+def : Pat<(extloadi8 (add GPR:$rs1, simm16:$off)),
+          (LBU GPR:$rs1, simm16:$off)>;
+def : Pat<(extloadi16 (add GPR:$rs1, simm16:$off)),
+          (LHU GPR:$rs1, simm16:$off)>;
+def : Pat<(extloadi8 GPR:$rs1), (LBU GPR:$rs1, 0)>;
+def : Pat<(extloadi16 GPR:$rs1), (LHU GPR:$rs1, 0)>;
+
+// Helper transforms for 32-bit immediate splitting
+def Hi16Xform : SDNodeXForm<imm, [{
+  return CurDAG->getTargetConstant((N->getZExtValue() >> 16) & 0xFFFF,
+                                    SDLoc(N), MVT::i32);
+}]>;
+
+def Lo16Xform : SDNodeXForm<imm, [{
+  return CurDAG->getTargetConstant(N->getZExtValue() & 0xFFFF,
+                                    SDLoc(N), MVT::i32);
+}]>;
+
+// Constant materialization patterns
+def : Pat<(i32 uimm16:$imm), (MOVI uimm16:$imm)>;
+
+// 32-bit constant: LUI + ORI
+def : Pat<(i32 imm:$imm),
+          (ORI (LUI (Hi16Xform imm:$imm)), (Lo16Xform imm:$imm))>;

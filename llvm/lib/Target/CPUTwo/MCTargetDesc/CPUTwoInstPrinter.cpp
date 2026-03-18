@@ -43,6 +43,18 @@ void CPUTwoInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
     MAI.printExpr(O, *Op.getExpr());
 }
 
+void CPUTwoInstPrinter::printCondCodeOperand(const MCInst *MI, unsigned OpNo,
+                                              raw_ostream &O) {
+  static const char *const CCNames[] = {
+    "eq", "ne", "lt", "ge", "ltu", "geu", "al", "gt", "le", "gtu", "leu"
+  };
+  unsigned CC = MI->getOperand(OpNo).getImm();
+  if (CC < 11)
+    O << CCNames[CC];
+  else
+    O << CC;
+}
+
 void CPUTwoInstPrinter::printMemOperand(const MCInst *MI, unsigned OpNo,
                                         raw_ostream &O) {
   O << "[";

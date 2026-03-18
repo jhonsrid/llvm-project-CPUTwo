@@ -37,6 +37,7 @@ BitVector CPUTwoRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
   Reserved.set(CPUTwo::SP);
   Reserved.set(CPUTwo::PC);
+  Reserved.set(CPUTwo::SR);
   return Reserved;
 }
 

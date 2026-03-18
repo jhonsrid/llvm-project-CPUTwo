@@ -37,6 +37,11 @@ def SP  : CPUTwoReg<13, "sp",  ["r13"]>;
 def LR  : CPUTwoReg<14, "lr",  ["r14"]>;
 def PC  : CPUTwoReg<15, "pc",  ["r15"]>;
 
+// Status flags register (not directly accessible, used for implicit defs)
+def SR : CPUTwoReg<0, "sr"> {
+  let Namespace = "CPUTwo";
+}
+
 // Register classes
 // GPR - all allocatable registers (excludes PC)
 def GPR : RegisterClass<"CPUTwo", [i32], 32,

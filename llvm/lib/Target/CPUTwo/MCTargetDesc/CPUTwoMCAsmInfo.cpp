@@ -7,6 +7,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "CPUTwoMCAsmInfo.h"
+#include "llvm/MC/MCExpr.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/TargetParser/Triple.h"
 
 using namespace llvm;
@@ -27,4 +29,21 @@ CPUTwoMCAsmInfo::CPUTwoMCAsmInfo(const Triple & /*TheTriple*/,
   SupportsDebugInformation = true;
 
   MinInstAlignment = 4;
+}
+
+void CPUTwoMCAsmInfo::printSpecifierExpr(raw_ostream &OS,
+                                          const MCSpecifierExpr &Expr) const {
+  switch (Expr.getSpecifier()) {
+  default:
+    printExpr(OS, *Expr.getSubExpr());
+    return;
+  case CPUTwo::S_HI16:
+    OS << "%hi(";
+    break;
+  case CPUTwo::S_LO16:
+    OS << "%lo(";
+    break;
+  }
+  printExpr(OS, *Expr.getSubExpr());
+  OS << ')';
 }
