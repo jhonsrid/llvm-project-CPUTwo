@@ -9,6 +9,8 @@
 #ifndef LLVM_LIBC_INCLUDE_LLVM_LIBC_TYPES_ERRNO_T_H
 #define LLVM_LIBC_INCLUDE_LLVM_LIBC_TYPES_ERRNO_T_H
 
+#include "../llvm-libc-macros/annex-k-macros.h"
+
 // LIBC_HAS_ANNEX_K is used to check whether C11 Annex K (the optional
 // “Bounds-checking interfaces”) is enabled in this libc implementation. Annex K
 // introduces additional types and functions, including `errno_t` (a typedef

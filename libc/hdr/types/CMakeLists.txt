@@ -168,7 +168,6 @@ add_proxy_header_library(
     errno_t.h
   FULL_BUILD_DEPENDS
     libc.include.llvm-libc-types.errno_t
-    libc.include.errno
 )
 
 add_proxy_header_library(
