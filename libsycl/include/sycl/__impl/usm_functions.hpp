@@ -37,7 +37,7 @@ void *_LIBSYCL_EXPORT malloc_device(std::size_t numBytes,
 
 /// Allocates device USM.
 ///
-/// \param count number of elements of type T to allocate.
+/// \param count the number of elements of type T to allocate.
 /// \param syclDevice the device to use for the allocation.
 /// \param syclContext a context containing syclDevice or its parent device if
 /// syclDevice is a subdevice.
@@ -69,7 +69,7 @@ void *_LIBSYCL_EXPORT malloc_device(std::size_t numBytes,
 
 /// Allocates device USM.
 ///
-/// \param count number of elements of type T to allocate.
+/// \param count the number of elements of type T to allocate.
 /// \param syclQueue a queue that provides the device and context.
 /// \param propList the list of properties for the allocation.
 /// \return a pointer to the newly allocated memory, which is allocated on
@@ -100,7 +100,7 @@ void *_LIBSYCL_EXPORT malloc_host(std::size_t numBytes,
 
 /// Allocates host USM.
 ///
-/// \param count number of elements of type T to allocate.
+/// \param count the number of elements of type T to allocate.
 /// \param syclContext the context that should have access to the allocated
 /// memory.
 /// \param propList the list of properties for the allocation.
@@ -127,7 +127,7 @@ void *_LIBSYCL_EXPORT malloc_host(std::size_t numBytes, const queue &syclQueue,
 
 /// Allocates host USM.
 ///
-/// \param count number of elements of type T to allocate.
+/// \param count the number of elements of type T to allocate.
 /// \param syclQueue queue that provides the context.
 /// \param propList the list of properties for the allocation.
 /// \return a pointer to the newly allocated memory, which must eventually be
@@ -158,7 +158,7 @@ void *_LIBSYCL_EXPORT malloc_shared(std::size_t numBytes,
 
 /// Allocates shared USM.
 ///
-/// \param count number of elements of type T to allocate.
+/// \param count the number of elements of type T to allocate.
 /// \param syclDevice the device to use for the allocation.
 /// \param syclContext a context containing syclDevice or its parent device if
 /// syclDevice is a subdevice.
@@ -188,7 +188,7 @@ void *_LIBSYCL_EXPORT malloc_shared(std::size_t numBytes,
 
 /// Allocates shared USM.
 ///
-/// \param count number of elements of type T to allocate.
+/// \param count the number of elements of type T to allocate.
 /// \param syclQueue a queue that provides the device and context.
 /// \param propList the list of properties for the allocation.
 /// \return a pointer to the newly allocated memory, which must eventually be
@@ -222,7 +222,7 @@ void *_LIBSYCL_EXPORT malloc(std::size_t numBytes, const device &syclDevice,
 
 /// Allocates USM of type `kind`.
 ///
-/// \param count number of elements of type T to allocate.
+/// \param count the number of elements of type T to allocate.
 /// \param syclDevice the device to use for the allocation. The syclDevice
 /// parameter is ignored if kind is usm::alloc::host.
 /// \param syclContext a context containing syclDevice or its parent device if
@@ -258,7 +258,7 @@ void *_LIBSYCL_EXPORT malloc(std::size_t numBytes, const queue &syclQueue,
 
 /// Allocates USM of type `kind`.
 ///
-/// \param count number of elements of type T to allocate.
+/// \param count the number of elements of type T to allocate.
 /// \param syclQueue a queue that provides the device and context.
 /// \param kind the type of memory to allocate.
 /// \param propList the list of properties for the allocation.
