@@ -97,14 +97,18 @@ bool PyGlobals::loadDialectModule(std::string_view dialectNamespace) {
 }
 
 void PyGlobals::registerAttributeBuilder(const std::string &attributeKind,
-                                         nb::callable pyFunc, bool replace) {
+                                         nb::callable pyFunc, bool replace,
+                                         bool allow_existing) {
   nb::ft_lock_guard lock(mutex);
   nb::object &found = attributeBuilderMap[attributeKind];
-  if (found && !replace) {
-    throw std::runtime_error(
-        nanobind::detail::join("Attribute builder for '", attributeKind,
-                               "' is already registered with func: ",
-                               nb::cast<std::string>(nb::str(found))));
+  if (found) {
+    if (allow_existing)
+      return;
+    if (!replace)
+      throw std::runtime_error(
+          nanobind::detail::join("Attribute builder for '", attributeKind,
+                                 "' is already registered with func: ",
+                                 nb::cast<std::string>(nb::str(found))));
   }
   found = std::move(pyFunc);
 }

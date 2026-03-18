@@ -341,7 +341,7 @@ def {0}({2}) -> _Union[_ods_ir.OpResult, _ods_ir.OpResultList, {1}]:
 static llvm::cl::OptionCategory
     clOpPythonBindingCat("Options for -gen-python-op-bindings");
 
-static llvm::cl::opt<std::string>
+llvm::cl::opt<std::string>
     clDialectName("bind-dialect",
                   llvm::cl::desc("The dialect to run the generator for"),
                   llvm::cl::init(""), llvm::cl::cat(clOpPythonBindingCat));
@@ -887,11 +887,27 @@ populateBuilderLinesAttr(const Operator &op, ArrayRef<std::string> argNames,
       continue;
     }
 
+    // For EnumAttr-style attributes (those defined as EnumAttr<Dialect, ...>
+    // in tablegen), use a dialect-qualified key ("dialect.AttrName") so the
+    // lookup matches the registration emitted by EnumPythonBindingGen with
+    // -bind-dialect. For all other attributes (plain attrs like I32Attr,
+    // custom AttrDef, etc.), keep the unqualified name to match their
+    // registrations in ir.py or dialect-specific Python files.
+    Attribute baseAttr = attribute->attr.getBaseAttr();
+    Dialect attrDialect = baseAttr.isSubClassOf("EnumAttr")
+                              ? baseAttr.getDialect()
+                              : Dialect(nullptr);
+    std::string attrBuilderKey =
+        attrDialect ? formatv("{0}.{1}", attrDialect.getName(),
+                              attribute->attr.getAttrDefName())
+                          .str()
+                    : attribute->attr.getAttrDefName().str();
+
     builderLines.push_back(formatv(
         attribute->attr.isOptional() || attribute->attr.hasDefaultValue()
             ? initOptionalAttributeWithBuilderTemplate
             : initAttributeWithBuilderTemplate,
-        argNames[i], attribute->name, attribute->attr.getAttrDefName()));
+        argNames[i], attribute->name, attrBuilderKey));
   }
 }
 
