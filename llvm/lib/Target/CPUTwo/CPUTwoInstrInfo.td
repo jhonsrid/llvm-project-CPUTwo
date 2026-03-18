@@ -375,33 +375,33 @@ def CMPI : CPUTwoInstI<0x29,
 let mayLoad = 1 in {
 def LW : CPUTwoInstM<0x0B,
   (outs GPR:$rd), (ins GPR:$rs1, simm16:$imm16),
-  "lw\t$rd, [$rs1 + $imm16]",
+  "lw\t$rd, $rs1, $imm16",
   [(set GPR:$rd, (load (add GPR:$rs1, simm16:$imm16)))]>;
 
 def LH : CPUTwoInstM<0x1C,
   (outs GPR:$rd), (ins GPR:$rs1, simm16:$imm16),
-  "lh\t$rd, [$rs1 + $imm16]",
+  "lh\t$rd, $rs1, $imm16",
   [(set GPR:$rd, (sextloadi16 (add GPR:$rs1, simm16:$imm16)))]>;
 
 def LHU : CPUTwoInstM<0x1D,
   (outs GPR:$rd), (ins GPR:$rs1, simm16:$imm16),
-  "lhu\t$rd, [$rs1 + $imm16]",
+  "lhu\t$rd, $rs1, $imm16",
   [(set GPR:$rd, (zextloadi16 (add GPR:$rs1, simm16:$imm16)))]>;
 
 def LB : CPUTwoInstM<0x1E,
   (outs GPR:$rd), (ins GPR:$rs1, simm16:$imm16),
-  "lb\t$rd, [$rs1 + $imm16]",
+  "lb\t$rd, $rs1, $imm16",
   [(set GPR:$rd, (sextloadi8 (add GPR:$rs1, simm16:$imm16)))]>;
 
 def LBU : CPUTwoInstM<0x1F,
   (outs GPR:$rd), (ins GPR:$rs1, simm16:$imm16),
-  "lbu\t$rd, [$rs1 + $imm16]",
+  "lbu\t$rd, $rs1, $imm16",
   [(set GPR:$rd, (zextloadi8 (add GPR:$rs1, simm16:$imm16)))]>;
 
 // Indexed loads (R-type)
 def LWX : CPUTwoInstR<0x30,
   (outs GPR:$rd), (ins GPR:$rs1, GPR:$rs2),
-  "lwx\t$rd, [$rs1 + $rs2]",
+  "lwx\t$rd, $rs1, $rs2",
   [(set GPR:$rd, (load (add GPR:$rs1, GPR:$rs2)))]> {
   let shift = 0;
   let func = 0;
@@ -409,7 +409,7 @@ def LWX : CPUTwoInstR<0x30,
 
 def LBX : CPUTwoInstR<0x31,
   (outs GPR:$rd), (ins GPR:$rs1, GPR:$rs2),
-  "lbx\t$rd, [$rs1 + $rs2]",
+  "lbx\t$rd, $rs1, $rs2",
   [(set GPR:$rd, (sextloadi8 (add GPR:$rs1, GPR:$rs2)))]> {
   let shift = 0;
   let func = 0;
@@ -417,7 +417,7 @@ def LBX : CPUTwoInstR<0x31,
 
 def LBUX : CPUTwoInstR<0x32,
   (outs GPR:$rd), (ins GPR:$rs1, GPR:$rs2),
-  "lbux\t$rd, [$rs1 + $rs2]",
+  "lbux\t$rd, $rs1, $rs2",
   [(set GPR:$rd, (zextloadi8 (add GPR:$rs1, GPR:$rs2)))]> {
   let shift = 0;
   let func = 0;
@@ -425,7 +425,7 @@ def LBUX : CPUTwoInstR<0x32,
 
 def LHX : CPUTwoInstR<0x35,
   (outs GPR:$rd), (ins GPR:$rs1, GPR:$rs2),
-  "lhx\t$rd, [$rs1 + $rs2]",
+  "lhx\t$rd, $rs1, $rs2",
   [(set GPR:$rd, (sextloadi16 (add GPR:$rs1, GPR:$rs2)))]> {
   let shift = 0;
   let func = 0;
@@ -433,7 +433,7 @@ def LHX : CPUTwoInstR<0x35,
 
 def LHUX : CPUTwoInstR<0x36,
   (outs GPR:$rd), (ins GPR:$rs1, GPR:$rs2),
-  "lhux\t$rd, [$rs1 + $rs2]",
+  "lhux\t$rd, $rs1, $rs2",
   [(set GPR:$rd, (zextloadi16 (add GPR:$rs1, GPR:$rs2)))]> {
   let shift = 0;
   let func = 0;
@@ -447,23 +447,23 @@ def LHUX : CPUTwoInstR<0x36,
 let mayStore = 1 in {
 def SW : CPUTwoInstM<0x0C,
   (outs), (ins GPR:$rd, GPR:$rs1, simm16:$imm16),
-  "sw\t$rd, [$rs1 + $imm16]",
+  "sw\t$rd, $rs1, $imm16",
   [(store GPR:$rd, (add GPR:$rs1, simm16:$imm16))]>;
 
 def SH : CPUTwoInstM<0x20,
   (outs), (ins GPR:$rd, GPR:$rs1, simm16:$imm16),
-  "sh\t$rd, [$rs1 + $imm16]",
+  "sh\t$rd, $rs1, $imm16",
   [(truncstorei16 GPR:$rd, (add GPR:$rs1, simm16:$imm16))]>;
 
 def SB : CPUTwoInstM<0x21,
   (outs), (ins GPR:$rd, GPR:$rs1, simm16:$imm16),
-  "sb\t$rd, [$rs1 + $imm16]",
+  "sb\t$rd, $rs1, $imm16",
   [(truncstorei8 GPR:$rd, (add GPR:$rs1, simm16:$imm16))]>;
 
 // Indexed stores (R-type)
 def SWX : CPUTwoInstR<0x33,
   (outs), (ins GPR:$rd, GPR:$rs1, GPR:$rs2),
-  "swx\t$rd, [$rs1 + $rs2]",
+  "swx\t$rd, $rs1, $rs2",
   [(store GPR:$rd, (add GPR:$rs1, GPR:$rs2))]> {
   let shift = 0;
   let func = 0;
@@ -471,7 +471,7 @@ def SWX : CPUTwoInstR<0x33,
 
 def SBX : CPUTwoInstR<0x34,
   (outs), (ins GPR:$rd, GPR:$rs1, GPR:$rs2),
-  "sbx\t$rd, [$rs1 + $rs2]",
+  "sbx\t$rd, $rs1, $rs2",
   [(truncstorei8 GPR:$rd, (add GPR:$rs1, GPR:$rs2))]> {
   let shift = 0;
   let func = 0;
@@ -479,7 +479,7 @@ def SBX : CPUTwoInstR<0x34,
 
 def SHX : CPUTwoInstR<0x37,
   (outs), (ins GPR:$rd, GPR:$rs1, GPR:$rs2),
-  "shx\t$rd, [$rs1 + $rs2]",
+  "shx\t$rd, $rs1, $rs2",
   [(truncstorei16 GPR:$rd, (add GPR:$rs1, GPR:$rs2))]> {
   let shift = 0;
   let func = 0;
@@ -579,7 +579,7 @@ def KRET    : CPUTwoInstSys<0x3F, "kret">;
 
 def CAS : CPUTwoInstR<0x3D,
   (outs GPR:$rd), (ins GPR:$rs1, GPR:$rs2),
-  "cas\t$rd, [$rs1], $rs2",
+  "cas\t$rd, $rs1, $rs2",
   []> {
   let shift = 0;
   let func = 0;

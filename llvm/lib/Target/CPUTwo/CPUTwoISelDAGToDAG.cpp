@@ -86,6 +86,13 @@ void CPUTwoDAGToDAGISel::Select(SDNode *Node) {
     CurDAG->SelectNodeTo(Node, CPUTwo::LUI, MVT::i32, Node->getOperand(0));
     return;
   }
+  case ISD::FrameIndex: {
+    SDValue FrameIdx = CurDAG->getTargetFrameIndex(
+        cast<FrameIndexSDNode>(Node)->getIndex(), MVT::i32);
+    CurDAG->SelectNodeTo(Node, CPUTwo::ADDI, MVT::i32, FrameIdx,
+                         CurDAG->getTargetConstant(0, DL, MVT::i32));
+    return;
+  }
   case CPUTwoISD::LO16: {
     CurDAG->SelectNodeTo(Node, CPUTwo::ORI, MVT::i32, Node->getOperand(0),
                          Node->getOperand(1));

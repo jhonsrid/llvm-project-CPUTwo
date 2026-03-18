@@ -24,8 +24,8 @@ LLVMInitializeCPUTwoTarget() {
 }
 
 static std::string computeDataLayout() {
-  // Little-endian, 32-bit pointers, 32-bit aligned
-  return "e-m:e-p:32:32-i32:32-n32-S32";
+  // Little-endian, 32-bit pointers, 32/64-bit aligned
+  return "e-m:e-p:32:32-i32:32-i64:64-n32-S32";
 }
 
 CPUTwoTargetMachine::CPUTwoTargetMachine(const Target &T, const Triple &TT,

@@ -30,6 +30,7 @@
 #include "ToolChains/Hexagon.h"
 #include "ToolChains/Hurd.h"
 #include "ToolChains/LFILinux.h"
+#include "ToolChains/CPUTwo.h"
 #include "ToolChains/Lanai.h"
 #include "ToolChains/Linux.h"
 #include "ToolChains/MSP430.h"
@@ -7106,6 +7107,9 @@ const ToolChain &Driver::getToolChain(const ArgList &Args,
       case llvm::Triple::hexagon:
         TC = std::make_unique<toolchains::HexagonToolChain>(*this, Target,
                                                              Args);
+        break;
+      case llvm::Triple::cputwo:
+        TC = std::make_unique<toolchains::CPUTwoToolChain>(*this, Target, Args);
         break;
       case llvm::Triple::lanai:
         TC = std::make_unique<toolchains::LanaiToolChain>(*this, Target, Args);

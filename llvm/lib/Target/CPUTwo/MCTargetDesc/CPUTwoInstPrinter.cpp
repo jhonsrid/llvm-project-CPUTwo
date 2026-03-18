@@ -57,9 +57,7 @@ void CPUTwoInstPrinter::printCondCodeOperand(const MCInst *MI, unsigned OpNo,
 
 void CPUTwoInstPrinter::printMemOperand(const MCInst *MI, unsigned OpNo,
                                         raw_ostream &O) {
-  O << "[";
   printRegName(O, MI->getOperand(OpNo).getReg());
-  O << " + ";
+  O << ", ";
   printOperand(MI, OpNo + 1, O);
-  O << "]";
 }
