@@ -96,7 +96,7 @@ ol_alloc_type_t getOlAllocType(usm::alloc USMKind) {
     return OL_ALLOC_TYPE_DEVICE;
   case usm::alloc::shared:
     return OL_ALLOC_TYPE_MANAGED;
-  default:
+  case usm::alloc::unknown:
     // usm::alloc::unknown can be returned to user from get_pointer_type but it
     // can't be converted to a valid backend type.
     throw exception(sycl::make_error_code(sycl::errc::runtime),
