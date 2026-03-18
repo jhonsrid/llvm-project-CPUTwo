@@ -55,35 +55,41 @@ public:
       mlir::NamedAttribute attribute,
       mlir::LLVM::ModuleTranslation &moduleTranslation) const override {
     if (auto func = dyn_cast<mlir::LLVM::LLVMFuncOp>(op)) {
-      amendFunction(func, instructions, attribute, moduleTranslation);
+      if (mlir::failed(
+              amendFunction(func, instructions, attribute, moduleTranslation)))
+        return mlir::failure();
     } else if (auto mod = dyn_cast<mlir::ModuleOp>(op)) {
-      amendModule(mod, attribute, moduleTranslation);
+      if (mlir::failed(amendModule(mod, attribute, moduleTranslation)))
+        return mlir::failure();
     }
     return mlir::success();
   }
 
 private:
   // Translate CIR's extra function attributes to LLVM's function attributes.
-  void amendFunction(mlir::LLVM::LLVMFuncOp func,
-                     llvm::ArrayRef<llvm::Instruction *> instructions,
-                     mlir::NamedAttribute attribute,
-                     mlir::LLVM::ModuleTranslation &moduleTranslation) const {
-    // TODO(cir): Implement this
+  mlir::LogicalResult
+  amendFunction(mlir::LLVM::LLVMFuncOp func,
+                llvm::ArrayRef<llvm::Instruction *> instructions,
+                mlir::NamedAttribute attribute,
+                mlir::LLVM::ModuleTranslation &moduleTranslation) const {
+    // TODO(CIR): process extra function attributes.
+    return mlir::success();
   }
 
   // Translate CIR's module attributes to LLVM's module metadata
-  void amendModule(mlir::ModuleOp mod, mlir::NamedAttribute attribute,
-                   mlir::LLVM::ModuleTranslation &moduleTranslation) const {
+  mlir::LogicalResult
+  amendModule(mlir::ModuleOp mod, mlir::NamedAttribute attribute,
+              mlir::LLVM::ModuleTranslation &moduleTranslation) const {
     llvm::Module *llvmModule = moduleTranslation.getLLVMModule();
     llvm::LLVMContext &llvmContext = llvmModule->getContext();
 
-    // AMDGPU module flags
     if (attribute.getName() == "cir.amdhsa_code_object_version") {
       if (auto intAttr =
               mlir::dyn_cast<mlir::IntegerAttr>(attribute.getValue())) {
         llvmModule->addModuleFlag(llvm::Module::Error,
                                   "amdhsa_code_object_version",
                                   static_cast<uint32_t>(intAttr.getInt()));
+        return mlir::success();
       }
     }
 
@@ -94,8 +100,11 @@ private:
             llvm::MDString::get(llvmContext, strAttr.getValue());
         llvmModule->addModuleFlag(llvm::Module::Error, "amdgpu_printf_kind",
                                   mdStr);
+        return mlir::success();
       }
     }
+
+    return mlir::success();
   }
 };
 

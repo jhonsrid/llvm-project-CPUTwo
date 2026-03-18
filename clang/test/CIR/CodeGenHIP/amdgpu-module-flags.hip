@@ -11,7 +11,7 @@
 
 // RUN: %clang_cc1 -triple=amdgcn-amd-amdhsa -x hip \
 // RUN:            -fcuda-is-device -emit-llvm %s -o %t.ogcg.ll
-// RUN: FileCheck --check-prefix=OGCG %s --input-file=%t.ogcg.ll
+// RUN: FileCheck --check-prefix=LLVM %s --input-file=%t.ogcg.ll
 
 // Test that AMDGPU module flags are emitted correctly.
 
@@ -22,9 +22,5 @@
 // LLVM: !llvm.module.flags = !{
 // LLVM-DAG: !{i32 1, !"amdhsa_code_object_version", i32 600}
 // LLVM-DAG: !{i32 1, !"amdgpu_printf_kind", !"hostcall"}
-
-// OGCG: !llvm.module.flags = !{
-// OGCG-DAG: !{i32 1, !"amdhsa_code_object_version", i32 600}
-// OGCG-DAG: !{i32 1, !"amdgpu_printf_kind", !"hostcall"}
 
 __global__ void kernel() {}
