@@ -6,6 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "CPUTwoFixupKinds.h"
 #include "CPUTwoMCTargetDesc.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/MC/MCCodeEmitter.h"
@@ -91,9 +92,11 @@ unsigned CPUTwoMCCodeEmitter::encodeBranchTarget(
   if (MO.isImm())
     return static_cast<unsigned>(MO.getImm()) & 0xFFFFF;
 
-  // Create a fixup for the branch target
-  Fixups.push_back(MCFixup::create(0, MO.getExpr(),
-                                    static_cast<MCFixupKind>(FK_Data_4)));
+  // Create a PC-relative fixup for the branch target
+  Fixups.push_back(MCFixup::create(
+      0, MO.getExpr(),
+      static_cast<MCFixupKind>(CPUTwo::fixup_cputwo_pc20),
+      /*PCRel=*/true));
   return 0;
 }
 

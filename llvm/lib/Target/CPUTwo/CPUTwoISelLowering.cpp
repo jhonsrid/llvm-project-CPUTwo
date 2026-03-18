@@ -11,6 +11,7 @@
 #include "CPUTwoSubtarget.h"
 #include "CPUTwoTargetMachine.h"
 #include "CPUTwoCondCode.h"
+#include "CPUTwoMachineFunctionInfo.h"
 #include "MCTargetDesc/CPUTwoMCAsmInfo.h"
 #include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -265,8 +266,14 @@ SDValue CPUTwoTargetLowering::LowerSELECT_CC(SDValue Op,
 
 SDValue CPUTwoTargetLowering::LowerVASTART(SDValue Op,
                                              SelectionDAG &DAG) const {
-  // TODO: Implement varargs support
-  return SDValue();
+  MachineFunction &MF = DAG.getMachineFunction();
+  auto *FI = MF.getInfo<CPUTwoMachineFunctionInfo>();
+  SDLoc DL(Op);
+
+  // vastart stores the address of the first vararg on the stack
+  SDValue FIN = DAG.getFrameIndex(FI->getVarArgsFrameIndex(), MVT::i32);
+  return DAG.getStore(Op.getOperand(0), DL, FIN, Op.getOperand(1),
+                      MachinePointerInfo(Op.getOperand(1)));
 }
 
 SDValue CPUTwoTargetLowering::LowerFRAMEADDR(SDValue Op,
@@ -409,6 +416,14 @@ SDValue CPUTwoTargetLowering::LowerFormalArguments(
       InVals.push_back(
           DAG.getLoad(MVT::i32, DL, Chain, FIN, MachinePointerInfo()));
     }
+  }
+
+  if (IsVarArg) {
+    // Record the frame index of the first variable argument
+    auto *FI = MF.getInfo<CPUTwoMachineFunctionInfo>();
+    int VarArgsFI = MF.getFrameInfo().CreateFixedObject(
+        4, CCInfo.getStackSize(), true);
+    FI->setVarArgsFrameIndex(VarArgsFI);
   }
 
   return Chain;
