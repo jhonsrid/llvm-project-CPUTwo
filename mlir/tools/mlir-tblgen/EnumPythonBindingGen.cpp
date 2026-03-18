@@ -17,6 +17,8 @@
 #include "mlir/TableGen/Dialect.h"
 #include "mlir/TableGen/EnumInfo.h"
 #include "mlir/TableGen/GenInfo.h"
+
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/TableGen/Record.h"
 
@@ -36,6 +38,8 @@ from ..ir import register_attribute_builder
 _ods_ir = _ods_cext.ir
 
 )Py";
+
+extern llvm::cl::opt<std::string> clDialectName;
 
 /// Makes enum case name Python-compatible, i.e. UPPER_SNAKE_CASE.
 static std::string makePythonEnumCaseName(StringRef name) {
@@ -94,7 +98,7 @@ static bool emitAttributeBuilder(const EnumInfo &enumInfo, raw_ostream &os) {
     return false;
 
   int64_t bitwidth = enumInfo.getBitwidth();
-  os << formatv("@register_attribute_builder(\"{0}\")\n",
+  os << formatv("@register_attribute_builder(\"builtin.{0}\")\n",
                 enumAttrInfo->getAttrDefName());
   os << formatv("def _{0}(x, context):\n",
                 enumAttrInfo->getAttrDefName().lower());
@@ -108,10 +112,12 @@ static bool emitAttributeBuilder(const EnumInfo &enumInfo, raw_ostream &os) {
 /// Emits an attribute builder for the given dialect enum attribute to support
 /// automatic conversion between enum values and attributes in Python. Returns
 /// `false` on success, `true` on failure.
-static bool emitDialectEnumAttributeBuilder(StringRef attrDefName,
+static bool emitDialectEnumAttributeBuilder(StringRef dialect,
+                                            StringRef attrDefName,
                                             StringRef formatString,
                                             raw_ostream &os) {
-  os << formatv("@register_attribute_builder(\"{0}\")\n", attrDefName);
+  os << formatv("@register_attribute_builder(\"{0}.{1}\")\n", dialect,
+                attrDefName);
   os << formatv("def _{0}(x, context):\n", attrDefName.lower());
   os << formatv("    return "
                 "_ods_ir.Attribute.parse(f'{0}', context=context)\n\n",
@@ -127,11 +133,15 @@ static bool emitPythonEnums(const RecordKeeper &records, raw_ostream &os) {
        records.getAllDerivedDefinitionsIfDefined("EnumInfo")) {
     EnumInfo enumInfo(*it);
     emitEnumClass(enumInfo, os);
-    emitAttributeBuilder(enumInfo, os);
+    if (clDialectName.empty())
+      emitAttributeBuilder(enumInfo, os);
   }
   for (const Record *it :
        records.getAllDerivedDefinitionsIfDefined("EnumAttr")) {
     AttrOrTypeDef attr(&*it);
+    StringRef dialect = attr.getDialect().getName();
+    if (!clDialectName.empty() && dialect != clDialectName)
+      continue;
     if (!attr.getMnemonic()) {
       llvm::errs() << "enum case " << attr
                    << " needs mnemonic for python enum bindings generation";
@@ -139,14 +149,13 @@ static bool emitPythonEnums(const RecordKeeper &records, raw_ostream &os) {
     }
     StringRef mnemonic = attr.getMnemonic().value();
     std::optional<StringRef> assemblyFormat = attr.getAssemblyFormat();
-    StringRef dialect = attr.getDialect().getName();
     if (assemblyFormat == "`<` $value `>`") {
       emitDialectEnumAttributeBuilder(
-          attr.getName(),
+          dialect, attr.getName(),
           formatv("#{0}.{1}<{{str(x)}>", dialect, mnemonic).str(), os);
     } else if (assemblyFormat == "$value") {
       emitDialectEnumAttributeBuilder(
-          attr.getName(),
+          dialect, attr.getName(),
           formatv("#{0}<{1} {{str(x)}>", dialect, mnemonic).str(), os);
     } else {
       llvm::errs()

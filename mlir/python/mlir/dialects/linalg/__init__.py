@@ -111,6 +111,31 @@ def broadcast(
     return op
 
 
+@register_attribute_builder("builtin.BinaryFn")
+def _binaryfn(x, context):
+    return IntegerAttr.get(IntegerType.get_signless(32, context=context), int(x))
+
+
+@register_attribute_builder("builtin.IteratorType")
+def _iteratortype(x, context):
+    return IntegerAttr.get(IntegerType.get_signless(32, context=context), int(x))
+
+
+@register_attribute_builder("builtin.TernaryFn")
+def _ternaryfn(x, context):
+    return IntegerAttr.get(IntegerType.get_signless(32, context=context), int(x))
+
+
+@register_attribute_builder("builtin.TypeFn")
+def _typefn(x, context):
+    return IntegerAttr.get(IntegerType.get_signless(32, context=context), int(x))
+
+
+@register_attribute_builder("builtin.UnaryFn")
+def _unaryfn(x, context):
+    return IntegerAttr.get(IntegerType.get_signless(32, context=context), int(x))
+
+
 @register_attribute_builder("IteratorTypeArrayAttr")
 def _IteratorTypeArrayAttr(x, context):
     return ArrayAttr.get([_iteratortypeenum(v, context) for v in x])
