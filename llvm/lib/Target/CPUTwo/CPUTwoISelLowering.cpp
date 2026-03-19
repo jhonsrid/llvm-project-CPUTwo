@@ -521,6 +521,9 @@ SDValue CPUTwoTargetLowering::LowerCall(
     TargetLowering::CallLoweringInfo &CLI,
     SmallVectorImpl<SDValue> &InVals) const {
 
+  // Tail calls not yet supported
+  CLI.IsTailCall = false;
+
   SelectionDAG &DAG = CLI.DAG;
   SDLoc &DL = CLI.DL;
   SmallVectorImpl<ISD::OutputArg> &Outs = CLI.Outs;
