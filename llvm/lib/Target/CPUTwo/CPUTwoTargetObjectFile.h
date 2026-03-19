@@ -18,6 +18,7 @@ public:
   void Initialize(MCContext &Ctx, const TargetMachine &TM) override {
     TargetLoweringObjectFileELF::Initialize(Ctx, TM);
   }
+
 };
 
 } // namespace llvm

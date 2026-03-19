@@ -35,6 +35,7 @@ CPUTwoRegisterInfo::getCallPreservedMask(const MachineFunction &MF,
 
 BitVector CPUTwoRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
+  Reserved.set(CPUTwo::R12); // scratch register for frame index materialization
   Reserved.set(CPUTwo::SP);
   Reserved.set(CPUTwo::PC);
   Reserved.set(CPUTwo::SR);
@@ -64,14 +65,8 @@ bool CPUTwoRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   if (isInt<16>(Offset)) {
     MI.getOperand(FIOperandNum + 1).ChangeToImmediate(Offset);
   } else {
-    // For large offsets, try scavenging a register; fall back to R12 (scratch)
-    Register ScratchReg;
-    if (RS)
-      ScratchReg = RS->scavengeRegisterBackwards(
-          CPUTwo::GPRRegClass, II, /*RestoreAfter=*/false, SPAdj,
-          /*AllowSpill=*/true);
-    if (!ScratchReg)
-      ScratchReg = CPUTwo::R12;
+    // R12 is reserved as a scratch register for frame index materialization.
+    Register ScratchReg = CPUTwo::R12;
 
     DebugLoc DL = MI.getDebugLoc();
     MachineBasicBlock &MBB = *MI.getParent();

@@ -34,6 +34,8 @@ class CPUTwoTargetLowering : public TargetLowering {
 public:
   CPUTwoTargetLowering(const TargetMachine &TM, const CPUTwoSubtarget &STI);
 
+  unsigned getJumpTableEncoding() const override;
+
   SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
 
   const char *getTargetNodeName(unsigned Opcode) const override;

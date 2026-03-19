@@ -251,13 +251,15 @@ unsigned CPUTwoInstrInfo::removeBranch(MachineBasicBlock &MBB,
   if (I == MBB.end())
     return 0;
 
-  while (I != MBB.begin()) {
+  while (true) {
     unsigned Opc = I->getOpcode();
     if (Opc == CPUTwo::BA || getCondFromBranchOpc(Opc) !=
                                  static_cast<CPUTwoCC::CondCode>(-1)) {
       I->eraseFromParent();
-      I = MBB.getLastNonDebugInstr();
       ++Count;
+      I = MBB.getLastNonDebugInstr();
+      if (I == MBB.end())
+        break;
     } else {
       break;
     }

@@ -14,6 +14,7 @@
 #include "CPUTwoMachineFunctionInfo.h"
 #include "MCTargetDesc/CPUTwoMCAsmInfo.h"
 #include "llvm/CodeGen/CallingConvLower.h"
+#include "llvm/CodeGen/MachineJumpTableInfo.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
@@ -83,8 +84,10 @@ CPUTwoTargetLowering::CPUTwoTargetLowering(const TargetMachine &TM,
   // Jump tables — expand BR_JT to BRIND (indirect branch)
   setOperationAction(ISD::BR_JT, MVT::Other, Expand);
 
-  // Put jump tables in the function's text section so temp labels resolve
-  setMinimumJumpTableEntries(INT_MAX); // Disable jump tables, use if-else chains
+  // Disable jump tables — use binary search trees for switch statements.
+  // Jump table support requires fixing the integrated assembler to handle
+  // HI16/LO16 relocations referencing temporary symbols.
+  setMinimumJumpTableEntries(INT_MAX);
 
   // Dynamic stack allocation
   setOperationAction(ISD::DYNAMIC_STACKALLOC, MVT::i32, Custom);
@@ -159,6 +162,14 @@ const char *CPUTwoTargetLowering::getTargetNodeName(unsigned Opcode) const {
     return "CPUTwoISD::WRAPPER";
   }
   return nullptr;
+}
+
+unsigned CPUTwoTargetLowering::getJumpTableEncoding() const {
+  // Jump tables are disabled (setMinimumJumpTableEntries(INT_MAX)) because
+  // the integrated assembler can't emit relocations for temporary symbols
+  // used in jump table address materialization. Switch statements are
+  // lowered as binary search trees instead.
+  return MachineJumpTableInfo::EK_BlockAddress;
 }
 
 //===----------------------------------------------------------------------===//

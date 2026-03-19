@@ -48,8 +48,8 @@ public:
       // Force relocation for undefined/external symbols
       if (!Sym->isInSection())
         return false;
-      // Force relocation for cross-section refs to non-temporary symbols
-      if (!Sym->isTemporary() && &Sym->getSection() != F.getParent())
+      // Force relocation for cross-section references
+      if (&Sym->getSection() != F.getParent())
         return false;
     }
     return {};
