@@ -24,7 +24,7 @@ public:
   CPUTwoTargetInfo(const llvm::Triple &Triple, const TargetOptions &)
       : TargetInfo(Triple) {
     // Data layout: little-endian, 32-bit pointers, 32/64-bit aligned
-    resetDataLayout("e-m:e-p:32:32-i32:32-i64:64-n32-S32");
+    resetDataLayout("e-m:e-p:32:32-i32:32-i64:64-n32-S64");
 
     // CPUTwo uses 4 registers (r0-r3) for argument passing
     RegParmMax = 4;

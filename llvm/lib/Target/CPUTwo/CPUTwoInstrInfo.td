@@ -490,30 +490,29 @@ def SHX : CPUTwoInstR<0x37,
 // Branch instructions (B-type)
 //===----------------------------------------------------------------------===//
 
-let isBranch = 1, isTerminator = 1, Uses = [SR] in {
-
 class CPUTwoBranch<bits<4> condcode, string asmstr>
     : CPUTwoInstB<0x0D, condcode,
                   (outs), (ins brtarget20:$offset),
                   asmstr # "\t$offset",
                   []>;
 
+// Conditional branches read the status register
+let isBranch = 1, isTerminator = 1, Uses = [SR] in {
 def BEQ  : CPUTwoBranch<0,  "beq">;
 def BNE  : CPUTwoBranch<1,  "bne">;
 def BLT  : CPUTwoBranch<2,  "blt">;
 def BGE  : CPUTwoBranch<3,  "bge">;
 def BLTU : CPUTwoBranch<4,  "bltu">;
 def BGEU : CPUTwoBranch<5,  "bgeu">;
-
-let isBarrier = 1 in
-def BA   : CPUTwoBranch<6,  "ba">;
-
 def BGT  : CPUTwoBranch<7,  "bgt">;
 def BLE  : CPUTwoBranch<8,  "ble">;
 def BGTU : CPUTwoBranch<9,  "bgtu">;
 def BLEU : CPUTwoBranch<10, "bleu">;
+} // isBranch, isTerminator, Uses = [SR]
 
-} // isBranch, isTerminator
+// Unconditional branch does NOT use SR
+let isBranch = 1, isTerminator = 1, isBarrier = 1 in
+def BA   : CPUTwoBranch<6,  "ba">;
 
 // Unconditional branch pattern
 def : Pat<(br bb:$offset), (BA brtarget20:$offset)>;

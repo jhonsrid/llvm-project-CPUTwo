@@ -21,7 +21,7 @@ class CPUTwoFrameLowering : public TargetFrameLowering {
 public:
   explicit CPUTwoFrameLowering(const CPUTwoSubtarget &Subtarget)
       : TargetFrameLowering(StackGrowsDown,
-                            /*StackAlignment=*/Align(4),
+                            /*StackAlignment=*/Align(8),
                             /*LocalAreaOffset=*/0),
         STI(Subtarget) {}
 
