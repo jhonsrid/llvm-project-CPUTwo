@@ -56,3 +56,10 @@ def GPRnoSP : RegisterClass<"CPUTwo", [i32], 32,
    R12,
    R4, R5, R6, R7, R8, R9, R10, R11,
    LR)>;
+
+// GPRall - all registers including PC (for asm-level mov pc, lr etc.)
+def GPRall : RegisterClass<"CPUTwo", [i32], 32,
+  (add R0, R1, R2, R3,
+   R12,
+   R4, R5, R6, R7, R8, R9, R10, R11,
+   SP, LR, PC)>;

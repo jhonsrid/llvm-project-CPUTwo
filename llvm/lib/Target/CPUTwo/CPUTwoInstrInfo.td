@@ -211,6 +211,18 @@ def MOV : CPUTwoInstR<0x27,
   let func = 0;
 }
 
+// MOV with PC as destination/source (for asm: mov pc, lr etc.)
+// Same encoding as MOV but allows PC in operands.
+let isAsmParserOnly = 1 in
+def MOV_all : CPUTwoInstR<0x27,
+  (outs GPRall:$rd), (ins GPRall:$rs1),
+  "mov\t$rd, $rs1",
+  []> {
+  let rs2 = 0;
+  let shift = 0;
+  let func = 0;
+}
+
 // ADDC, SUBC
 def ADDC : CPUTwoInstR<0x2B,
   (outs GPR:$rd), (ins GPR:$rs1, GPR:$rs2),

@@ -24,7 +24,9 @@ CPUTwoMCAsmInfo::CPUTwoMCAsmInfo(const Triple & /*TheTriple*/,
 
   UsesELFSectionDirectiveForBSS = true;
 
-  CommentString = ";";
+  // Default CommentString is "#", SeparatorString is ";".
+  // Do NOT set CommentString to ";" as that conflicts with the
+  // statement separator used in macros like _ENTRY.
 
   SupportsDebugInformation = true;
 

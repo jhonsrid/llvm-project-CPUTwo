@@ -55,6 +55,10 @@ CPUTwoTargetLowering::CPUTwoTargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i8, Expand);
   setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i16, Expand);
 
+  // No bswap instruction
+  setOperationAction(ISD::BSWAP, MVT::i32, Expand);
+  setOperationAction(ISD::BSWAP, MVT::i16, Expand);
+
   // Expand i64 operations to i32 pairs
   setOperationAction(ISD::SHL_PARTS, MVT::i32, Expand);
   setOperationAction(ISD::SRA_PARTS, MVT::i32, Expand);
@@ -310,10 +314,14 @@ SDValue CPUTwoTargetLowering::LowerFRAMEADDR(SDValue Op,
 
 SDValue CPUTwoTargetLowering::LowerRETURNADDR(SDValue Op,
                                                 SelectionDAG &DAG) const {
-  MachineFrameInfo &MFI = DAG.getMachineFunction().getFrameInfo();
+  MachineFunction &MF = DAG.getMachineFunction();
+  MachineFrameInfo &MFI = MF.getFrameInfo();
   MFI.setReturnAddressIsTaken(true);
+
   SDLoc DL(Op);
-  return DAG.getCopyFromReg(DAG.getEntryNode(), DL, CPUTwo::LR, MVT::i32);
+  // Mark LR as an implicit live-in and use the virtual register copy.
+  Register Reg = MF.addLiveIn(CPUTwo::LR, &CPUTwo::GPRRegClass);
+  return DAG.getCopyFromReg(DAG.getEntryNode(), DL, Reg, MVT::i32);
 }
 
 SDValue CPUTwoTargetLowering::LowerDYNAMIC_STACKALLOC(SDValue Op,

@@ -6,6 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "MCTargetDesc/CPUTwoMCAsmInfo.h"
 #include "MCTargetDesc/CPUTwoMCTargetDesc.h"
 #include "TargetInfo/CPUTwoTargetInfo.h"
 #include "llvm/ADT/StringSwitch.h"
@@ -153,6 +154,10 @@ public:
                   const MCInstrInfo &MII, const MCTargetOptions &Options)
       : MCTargetAsmParser(Options, STI, MII), Parser(Parser) {
     setAvailableFeatures(ComputeAvailableFeatures(STI.getFeatureBits()));
+
+    // Standard GNU assembler directive aliases
+    Parser.addAliasForDirective(".word", ".4byte");
+    Parser.addAliasForDirective(".hword", ".2byte");
   }
 
   bool parseRegister(MCRegister &Reg, SMLoc &StartLoc,
@@ -278,6 +283,44 @@ bool CPUTwoAsmParser::parseOperand(OperandVector &Operands,
 
     Operands.push_back(CPUTwoOperand::createReg(Reg, S, E));
     Operands.push_back(CPUTwoOperand::createImm(Expr, S, E));
+    return false;
+  }
+
+  // Try %hi(expr) / %lo(expr) specifiers
+  if (Parser.getTok().is(AsmToken::Percent)) {
+    SMLoc SpecLoc = Parser.getTok().getLoc();
+    Parser.Lex(); // Eat '%'
+
+    if (Parser.getTok().isNot(AsmToken::Identifier))
+      return Error(Parser.getTok().getLoc(), "expected specifier name after '%'");
+
+    StringRef Name = Parser.getTok().getString();
+    uint8_t Spec = StringSwitch<uint8_t>(Name)
+        .Case("hi", CPUTwo::S_HI16)
+        .Case("lo", CPUTwo::S_LO16)
+        .Default(CPUTwo::S_None);
+    if (Spec == CPUTwo::S_None)
+      return Error(Parser.getTok().getLoc(),
+                   "unknown specifier '" + Name + "'");
+
+    Parser.Lex(); // Eat specifier name
+
+    if (Parser.getTok().isNot(AsmToken::LParen))
+      return Error(Parser.getTok().getLoc(), "expected '('");
+    Parser.Lex(); // Eat '('
+
+    const MCExpr *SubExpr;
+    if (getParser().parseExpression(SubExpr))
+      return true;
+
+    if (Parser.getTok().isNot(AsmToken::RParen))
+      return Error(Parser.getTok().getLoc(), "expected ')'");
+    E = Parser.getTok().getEndLoc();
+    Parser.Lex(); // Eat ')'
+
+    const MCExpr *Expr =
+        MCSpecifierExpr::create(SubExpr, Spec, getContext(), SpecLoc);
+    Operands.push_back(CPUTwoOperand::createImm(Expr, SpecLoc, E));
     return false;
   }
 

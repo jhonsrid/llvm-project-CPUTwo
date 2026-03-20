@@ -24,4 +24,12 @@ void CPUTwoTargetInfo::getTargetDefines(const LangOptions &Opts,
                                          MacroBuilder &Builder) const {
   Builder.defineMacro("__cputwo__");
   Builder.defineMacro("__CPUTWO__");
+
+  // NetBSD headers require __WCHAR_MIN__ and __WINT_MIN__
+  Builder.defineMacro("__WCHAR_MIN__", "(-__WCHAR_MAX__-1)");
+  Builder.defineMacro("__WINT_MIN__", "(-__WINT_MAX__-1)");
+
+  // NetBSD signal.h needs __SIG_ATOMIC_TYPE__
+  Builder.defineMacro("__SIG_ATOMIC_TYPE__", "int");
+  Builder.defineMacro("__SIG_ATOMIC_MAX__", "2147483647");
 }

@@ -37,6 +37,8 @@ public:
     SizeType = UnsignedInt;
     PtrDiffType = SignedInt;
     IntPtrType = SignedInt;
+    WCharType = SignedInt;
+    WIntType = SignedInt;
   }
 
   void getTargetDefines(const LangOptions &Opts,
@@ -74,7 +76,16 @@ public:
 
   bool validateAsmConstraint(const char *&Name,
                              TargetInfo::ConstraintInfo &info) const override {
-    return false;
+    switch (*Name) {
+    default:
+      return false;
+    case 'r': // general register
+      info.setAllowsRegister();
+      return true;
+    case 'n': // immediate integer
+    case 'i': // immediate
+      return true;
+    }
   }
 
   std::string_view getClobbers() const override { return ""; }

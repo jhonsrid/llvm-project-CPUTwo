@@ -15,6 +15,7 @@
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCStreamer.h"
+#include "MCTargetDesc/CPUTwoInstPrinter.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/Compiler.h"
 
@@ -36,6 +37,9 @@ public:
   StringRef getPassName() const override { return "CPUTwo Assembly Printer"; }
 
   void emitInstruction(const MachineInstr *MI) override;
+
+  bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
+                       const char *ExtraCode, raw_ostream &OS) override;
 };
 
 } // end anonymous namespace
@@ -44,6 +48,28 @@ void CPUTwoAsmPrinter::emitInstruction(const MachineInstr *MI) {
   MCInst TmpInst;
   MCInstLowering.Lower(MI, TmpInst);
   EmitToStreamer(*OutStreamer, TmpInst);
+}
+
+bool CPUTwoAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
+                                        const char *ExtraCode,
+                                        raw_ostream &OS) {
+  if (ExtraCode && *ExtraCode)
+    return true; // unknown extra code
+
+  const MachineOperand &MO = MI->getOperand(OpNo);
+  switch (MO.getType()) {
+  case MachineOperand::MO_Register:
+    OS << CPUTwoInstPrinter::getRegisterName(MO.getReg());
+    return false;
+  case MachineOperand::MO_Immediate:
+    OS << MO.getImm();
+    return false;
+  case MachineOperand::MO_GlobalAddress:
+    OS << *getSymbol(MO.getGlobal());
+    return false;
+  default:
+    return true;
+  }
 }
 
 extern "C" LLVM_ABI LLVM_EXTERNAL_VISIBILITY void
