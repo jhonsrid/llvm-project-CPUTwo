@@ -415,6 +415,19 @@ public:
   void addSymbols(ThunkSection &isec) override;
 };
 
+// CPUTwo thunk: LUI r12, %hi(target); ORI r12, r12, %lo(target); MOV PC, r12
+// Uses r12 (scratch register, caller-saved, reserved from allocation).
+// MOV PC, r12 is an indirect jump that does NOT modify LR,
+// so the return address set by the original JMP is preserved.
+class CPUTwoThunk : public Thunk {
+public:
+  CPUTwoThunk(Ctx &ctx, Symbol &dest, int64_t addend)
+      : Thunk(ctx, dest, addend) {}
+  uint32_t size() override { return 12; }
+  void writeTo(uint8_t *buf) override;
+  void addSymbols(ThunkSection &isec) override;
+};
+
 // Hexagon CPUs need thunks for R_HEX_B{9,1{3,5},22}_PCREL,
 // R_HEX_{,GD_}PLT_B22_PCREL when their destination is out of
 // range.
@@ -1245,6 +1258,24 @@ void AVRThunk::addSymbols(ThunkSection &isec) {
             isec);
 }
 
+// CPUTwo thunk: absolute jump via r12 (scratch register).
+//   LUI  r12, %hi(target)     ; 0x38C0xxxx
+//   ORI  r12, r12, %lo(target) ; 0x17CCxxxx
+//   MOV  PC, r12              ; 0x27FC0000
+void CPUTwoThunk::writeTo(uint8_t *buf) {
+  uint64_t s = destination.getVA(ctx) + addend;
+  uint32_t hi = (s >> 16) & 0xFFFF;
+  uint32_t lo = s & 0xFFFF;
+  write32(ctx, buf,     0x38C00000 | hi);  // LUI r12, %hi(target)
+  write32(ctx, buf + 4, 0x17CC0000 | lo);  // ORI r12, r12, %lo(target)
+  write32(ctx, buf + 8, 0x27FC0000);       // MOV PC, r12
+}
+
+void CPUTwoThunk::addSymbols(ThunkSection &isec) {
+  addSymbol(ctx.saver.save("__CPUTwoThunk_" + destination.getName()),
+            STT_FUNC, 0, isec);
+}
+
 // Write MIPS LA25 thunk code to call PIC function from the non-PIC one.
 void MipsThunk::writeTo(uint8_t *buf) {
   uint64_t s = destination.getVA(ctx);
@@ -1830,9 +1861,11 @@ std::unique_ptr<Thunk> elf::addThunk(Ctx &ctx, const InputSection &isec,
     return addThunkPPC64(ctx, rel.type, s, a);
   case EM_HEXAGON:
     return addThunkHexagon(ctx, isec, rel, s);
+  case EM_CPUTWO:
+    return std::make_unique<CPUTwoThunk>(ctx, s, a);
   default:
     llvm_unreachable(
-        "add Thunk only supported for ARM, AVR, Hexagon, Mips and PowerPC");
+        "add Thunk only supported for ARM, AVR, CPUTwo, Hexagon, Mips and PowerPC");
   }
 }
 
