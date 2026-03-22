@@ -106,8 +106,9 @@ bool CPUTwo::needsThunk(RelExpr expr, RelType type, const InputFile *file,
 }
 
 uint32_t CPUTwo::getThunkSectionSpacing() const {
-  // PC20 has range +/- 512KB. Leave margin for thunk sections.
-  return (512 * 1024) - 0x4000;
+  // PC20 has range +/- 512KB. Leave generous margin for thunk sections
+  // and address changes between passes.
+  return (512 * 1024) / 2;
 }
 
 bool CPUTwo::inBranchRange(RelType type, uint64_t src, uint64_t dst) const {

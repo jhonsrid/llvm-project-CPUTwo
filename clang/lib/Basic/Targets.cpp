@@ -132,6 +132,8 @@ std::unique_ptr<TargetInfo> AllocateTarget(const llvm::Triple &Triple,
     return std::make_unique<HexagonTargetInfo>(Triple, Opts);
 
   case llvm::Triple::cputwo:
+    if (os == llvm::Triple::NetBSD)
+      return std::make_unique<NetBSDTargetInfo<CPUTwoTargetInfo>>(Triple, Opts);
     return std::make_unique<CPUTwoTargetInfo>(Triple, Opts);
 
   case llvm::Triple::lanai:

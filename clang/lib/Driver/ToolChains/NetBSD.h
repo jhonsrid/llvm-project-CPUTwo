@@ -70,6 +70,9 @@ public:
 
   UnwindTableLevel
   getDefaultUnwindTableLevel(const llvm::opt::ArgList &Args) const override {
+    // CPUTwo backend does not support unwind table generation
+    if (getTriple().getArch() == llvm::Triple::cputwo)
+      return UnwindTableLevel::None;
     return UnwindTableLevel::Asynchronous;
   }
 

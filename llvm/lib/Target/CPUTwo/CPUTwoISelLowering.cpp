@@ -81,7 +81,7 @@ CPUTwoTargetLowering::CPUTwoTargetLowering(const TargetMachine &TM,
 
   // Variable arguments
   setOperationAction(ISD::VASTART, MVT::Other, Custom);
-  setOperationAction(ISD::VAARG, MVT::Other, Expand);
+  setOperationAction(ISD::VAARG, MVT::Other, Custom);
   setOperationAction(ISD::VACOPY, MVT::Other, Expand);
   setOperationAction(ISD::VAEND, MVT::Other, Expand);
 
@@ -112,6 +112,26 @@ CPUTwoTargetLowering::CPUTwoTargetLowering(const TargetMachine &TM,
   setBooleanContents(ZeroOrOneBooleanContent);
   setMaxAtomicSizeInBitsSupported(32);
 
+  // Single-core: atomic fence is a no-op, expand all atomics to plain ops
+  setOperationAction(ISD::ATOMIC_FENCE, MVT::Other, Custom);
+  for (MVT VT : {MVT::i8, MVT::i16, MVT::i32}) {
+    setOperationAction(ISD::ATOMIC_LOAD, VT, Expand);
+    setOperationAction(ISD::ATOMIC_STORE, VT, Expand);
+    setOperationAction(ISD::ATOMIC_LOAD_ADD, VT, Expand);
+    setOperationAction(ISD::ATOMIC_LOAD_SUB, VT, Expand);
+    setOperationAction(ISD::ATOMIC_LOAD_AND, VT, Expand);
+    setOperationAction(ISD::ATOMIC_LOAD_OR, VT, Expand);
+    setOperationAction(ISD::ATOMIC_LOAD_XOR, VT, Expand);
+    setOperationAction(ISD::ATOMIC_LOAD_NAND, VT, Expand);
+    setOperationAction(ISD::ATOMIC_LOAD_MIN, VT, Expand);
+    setOperationAction(ISD::ATOMIC_LOAD_MAX, VT, Expand);
+    setOperationAction(ISD::ATOMIC_LOAD_UMIN, VT, Expand);
+    setOperationAction(ISD::ATOMIC_LOAD_UMAX, VT, Expand);
+    setOperationAction(ISD::ATOMIC_SWAP, VT, Expand);
+    setOperationAction(ISD::ATOMIC_CMP_SWAP, VT, Expand);
+    setOperationAction(ISD::ATOMIC_CMP_SWAP_WITH_SUCCESS, VT, Expand);
+  }
+
   setMinFunctionAlignment(Align(4));
   setPrefFunctionAlignment(Align(4));
 }
@@ -133,15 +153,32 @@ SDValue CPUTwoTargetLowering::LowerOperation(SDValue Op,
     return LowerSELECT_CC(Op, DAG);
   case ISD::VASTART:
     return LowerVASTART(Op, DAG);
+  case ISD::VAARG:
+    return LowerVAARG(Op, DAG);
   case ISD::FRAMEADDR:
     return LowerFRAMEADDR(Op, DAG);
   case ISD::RETURNADDR:
     return LowerRETURNADDR(Op, DAG);
   case ISD::DYNAMIC_STACKALLOC:
     return LowerDYNAMIC_STACKALLOC(Op, DAG);
+  case ISD::ATOMIC_FENCE:
+    // Single-core CPU: fences are no-ops. Return the chain.
+    return Op.getOperand(0);
   default:
     report_fatal_error("unimplemented operand");
   }
+}
+
+std::pair<unsigned, const TargetRegisterClass *>
+CPUTwoTargetLowering::getRegForInlineAsmConstraint(
+    const TargetRegisterInfo *TRI, StringRef Constraint, MVT VT) const {
+  if (Constraint.size() == 1) {
+    switch (Constraint[0]) {
+    case 'r':
+      return std::make_pair(0U, &CPUTwo::GPRRegClass);
+    }
+  }
+  return TargetLowering::getRegForInlineAsmConstraint(TRI, Constraint, VT);
 }
 
 const char *CPUTwoTargetLowering::getTargetNodeName(unsigned Opcode) const {
@@ -300,6 +337,37 @@ SDValue CPUTwoTargetLowering::LowerVASTART(SDValue Op,
   const Value *SV = cast<SrcValueSDNode>(Op.getOperand(2))->getValue();
   return DAG.getStore(Op.getOperand(0), DL, FIN, Op.getOperand(1),
                       MachinePointerInfo(SV));
+}
+
+SDValue CPUTwoTargetLowering::LowerVAARG(SDValue Op,
+                                          SelectionDAG &DAG) const {
+  SDNode *Node = Op.getNode();
+  EVT VT = Node->getValueType(0);
+  SDValue InChain = Node->getOperand(0);
+  SDValue VAListPtr = Node->getOperand(1);
+  const Value *SV = cast<SrcValueSDNode>(Node->getOperand(2))->getValue();
+  SDLoc DL(Node);
+
+  // Load the current va_list pointer
+  SDValue VAList = DAG.getLoad(MVT::i32, DL, InChain, VAListPtr,
+                               MachinePointerInfo(SV));
+
+  // Compute size rounded up to 4-byte slot alignment.
+  // On CPUTwo, all varargs slots are 4-byte aligned regardless of type.
+  Type *Ty = VT.getTypeForEVT(*DAG.getContext());
+  unsigned ArgSize = DAG.getDataLayout().getTypeAllocSize(Ty);
+  ArgSize = llvm::alignTo(ArgSize, 4);
+
+  // Advance the va_list pointer past this argument
+  SDValue NextPtr = DAG.getNode(ISD::ADD, DL, MVT::i32, VAList,
+                                DAG.getConstant(ArgSize, DL, MVT::i32));
+
+  // Store the updated va_list pointer
+  InChain = DAG.getStore(VAList.getValue(1), DL, NextPtr, VAListPtr,
+                         MachinePointerInfo(SV));
+
+  // Load the argument value (no extra alignment — 4-byte aligned slots)
+  return DAG.getLoad(VT, DL, InChain, VAList, MachinePointerInfo());
 }
 
 SDValue CPUTwoTargetLowering::LowerFRAMEADDR(SDValue Op,
